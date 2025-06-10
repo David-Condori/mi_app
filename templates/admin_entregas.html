@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Entregas Asignadas - Administrador</title>
+    <style>
+        :root {
+            --verde-oscuro: #004225;
+            --verde-barra: #003815;
+            --verde-boton: #28a745;
+            --verde-boton-hover: #1e7e34;
+            --blanco-texto: #f0f0f0;
+            --gris-claro: #e0e0e0;
+            --gris-oscuro: #222;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--verde-oscuro);
+            color: var(--blanco-texto);
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #fff;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            background-color: rgba(255, 255, 255, 0.07);
+            box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: center;
+        }
+
+        th {
+            background-color: var(--verde-barra);
+            color: var(--blanco-texto);
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        tr:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        a.button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: var(--verde-boton);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: background-color 0.2s ease;
+        }
+
+        a.button:hover {
+            background-color: var(--verde-boton-hover);
+        }
+
+        .button-container {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Entregas Asignadas (Administrador)</h1>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Conductor</th>
+                <th>Vehículo</th>
+                <th>Ruta</th>
+                <th>Estado</th>
+                <th>Fecha</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entrega in entregas %}
+            <tr>
+                <td>{{ entrega.nombre_conductor }}</td>
+                <td>{{ entrega.placa }}</td>
+                <td>{{ entrega.origen }} → {{ entrega.destino }}</td>
+                <td>{{ entrega.estado_entrega }}</td>
+                <td>{{ entrega.fecha_entrega.strftime('%Y-%m-%d') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="button-container">
+        <a href="{{ url_for('dashboard') }}" class="button">Volver al Dashboard</a>
+    </div>
+
+</body>
+</html>

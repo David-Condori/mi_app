@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestionar Conductores</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f1f1f1;
+            margin: 0;
+            padding: 0;
+        }
+
+        .navbar {
+            background-color: #006400; /* Verde Oscuro */
+            color: white;
+            text-align: center;
+            padding: 15px;
+        }
+
+        .container {
+            padding: 20px;
+        }
+
+        .section-block {
+            margin-bottom: 20px;
+            background-color: #388E3C; /* Verde Claro */
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h3 {
+            color: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table th, table td {
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        table th {
+            background-color: #006400; /* Verde Oscuro */
+            color: white;
+        }
+
+        table td {
+            background-color: #fff;
+        }
+
+        .edit-btn, .delete-btn, .add-btn {
+            background-color: #388E3C;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .edit-btn:hover, .delete-btn:hover, .add-btn:hover {
+            background-color: #2C6E2F;
+        }
+
+        .delete-btn {
+            background-color: #D32F2F;
+        }
+
+        .delete-btn:hover {
+            background-color: #C62828;
+        }
+
+        a {
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <h1>COBOCE - Gestión de Conductores</h1>
+    </div>
+
+    <div class="container">
+        <div class="section-block">
+            <h3>Lista de Conductores</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre Completo</th>
+                        <th>Cédula</th>
+                        <th>Teléfono</th>
+                        <th>Dirección</th>
+                        <th>Licencia</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for conductor in conductores %}
+                    <tr>
+                        <td>{{ conductor.id_conductor }}</td>
+                        <td>{{ conductor.nombre }} {{ conductor.apellido_paterno }} {{ conductor.apellido_materno }}</td>
+                        <td>{{ conductor.cedula }}</td>
+                        <td>{{ conductor.telefono }}</td>
+                        <td>{{ conductor.direccion }}</td>
+                        <td>{{ conductor.licencia }}</td>
+                        <td>{{ conductor.estado }}</td>
+                        <td>
+                            <a href="{{ url_for('editar_conductor', id_conductor=conductor.id_conductor) }}" class="edit-btn">Editar</a>
+                            <form action="{{ url_for('eliminar_conductor', id_conductor=conductor.id_conductor) }}" method="POST" style="display:inline;">
+                                <button type="submit" class="delete-btn">Eliminar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section-block">
+            <a href="{{ url_for('agregar_conductor') }}" class="add-btn">Agregar Conductor</a>
+        </div>
+    </div>
+</body>
+</html>
+
+
+

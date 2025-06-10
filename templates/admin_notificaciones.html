@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Notificaciones - Administrador</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 30px;
+            background-color: #0b3d2e; /* Fondo verde oscuro */
+            color: white;
+        }
+        h1 {
+            color: #ffffff;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #ffffff;
+            color: #000;
+        }
+        th, td {
+            padding: 12px;
+            border: 1px solid #ccc;
+            text-align: left;
+        }
+        th {
+            background-color: #2e8b57;
+            color: white;
+        }
+        a.button {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 15px;
+            background-color: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        a.button:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>📬 Notificaciones de Conductores</h1>
+
+    {% if notificaciones %}
+    <table>
+        <thead>
+            <tr>
+                <th>👨‍✈️ Conductor</th>
+                <th>📝 Mensaje</th>
+                <th>📅 Fecha</th>
+                <th>🚗 Placa</th>
+                <th>📍 Origen</th>
+                <th>🎯 Destino</th>
+                <th>📌 Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for noti in notificaciones %}
+            <tr>
+                <td>{{ noti.nombre_conductor }}</td>
+                <td>{{ noti.mensaje }}</td>
+                <td>{{ noti.fecha_hora }}</td>
+                <td>{{ noti.placa }}</td>
+                <td>{{ noti.origen }}</td>
+                <td>{{ noti.destino }}</td>
+                <td>{% if noti.leido %}Leído{% else %}No leído{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No hay notificaciones registradas.</p>
+    {% endif %}
+
+    <a class="button" href="{{ url_for('dashboard') }}">⬅ Volver al Panel</a>
+
+</body>
+</html>
+
+

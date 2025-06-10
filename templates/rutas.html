@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rutas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f1f1f1;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #006400; /* Verde oscuro */
+            color: white;
+            padding: 15px 0;
+            text-align: center;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 2rem;
+        }
+        .container {
+            padding: 20px;
+        }
+        .btn {
+            background-color: #006400; /* Verde oscuro */
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            margin: 10px 0;
+            display: inline-block;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid #006400; /* Verde oscuro */
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #006400; /* Verde oscuro */
+            color: white;
+        }
+        td {
+            background-color: #f9f9f9;
+        }
+        .actions button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        .actions a {
+            text-decoration: none;
+            background-color: #007bff;
+            color: white;
+            padding: 5px 10px;
+            margin-right: 5px;
+            border-radius: 5px;
+        }
+        .actions form {
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Listado de Rutas</h1>
+    </header>
+
+    <div class="container">
+        <a href="{{ url_for('agregar_ruta') }}" class="btn">Agregar Nueva Ruta</a>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Origen</th>
+                    <th>Destino</th>
+                    <th>Distancia (km)</th>
+                    <th>Tiempo Estimado (hrs)</th>
+                    <th>Zona</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ruta in rutas %}
+                <tr>
+                    <td>{{ ruta.origen }}</td>
+                    <td>{{ ruta.destino }}</td>
+                    <td>{{ ruta.distancia }} km</td>
+                    <td>{{ ruta.tiempo_estimado }} hrs</td>
+                    <td>{{ ruta.zona }}</td>
+                    <td class="actions">
+                        <a href="{{ url_for('editar_ruta', id_ruta=ruta.id_ruta) }}">Editar</a> |
+                        <form action="{{ url_for('eliminar_ruta', id_ruta=ruta.id_ruta) }}" method="POST" style="display:inline;">
+                            <button type="submit">Eliminar</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6">No hay rutas registradas.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

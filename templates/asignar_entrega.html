@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Asignar Entrega</title>
+<style>
+    /* Reset y tipografía */
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #004d00; /* Verde Oscuro General */
+        margin: 0;
+        padding: 0;
+        color: #e6f2d9; /* Texto claro */
+    }
+
+    /* Barra de navegación */
+    .navbar {
+        background-color: #006400; /* Verde Oscuro */
+        color: white;
+        text-align: center;
+        padding: 18px 10px;
+        font-size: 1.6rem;
+        font-weight: bold;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    /* Contenedor principal */
+    .container {
+        max-width: 960px;
+        margin: 30px auto;
+        padding: 20px;
+        background-color: #005900; /* Verde oscuro un poco más claro que el body */
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    /* Bloques seccionados */
+    .section-block {
+        background-color: #388E3C; /* Verde Claro */
+        padding: 25px 30px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        margin-bottom: 30px;
+        color: white;
+    }
+
+    .section-block h2 {
+        margin-top: 0;
+        margin-bottom: 20px;
+        font-weight: 700;
+        font-size: 1.4rem;
+        text-align: center;
+    }
+
+    /* FORMULARIO: campo y label en horizontal */
+    form {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: flex-end;
+    }
+
+    form .form-group {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 28%;
+        min-width: 220px;
+    }
+
+    form label {
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: #d9f2b8;
+        font-size: 1rem;
+    }
+
+    form select {
+        padding: 10px 12px;
+        font-size: 1rem;
+        border-radius: 6px;
+        border: 2px solid #2a6824;
+        background-color: #c4e198;
+        color: #004d00;
+        transition: border-color 0.25s ease;
+    }
+
+    form select:focus {
+        border-color: #1e4d17;
+        outline: none;
+        background-color: #b1d86f;
+    }
+
+    form button[type="submit"] {
+        background-color: #2a6824;
+        color: white;
+        font-weight: 700;
+        font-size: 1.1rem;
+        border: none;
+        border-radius: 8px;
+        padding: 14px 28px;
+        cursor: pointer;
+        flex: 0 0 auto;
+        transition: background-color 0.3s ease;
+        align-self: flex-start;
+        margin-left: 10px;
+        box-shadow: 0 3px 7px rgba(0,0,0,0.15);
+    }
+
+    form button[type="submit"]:hover,
+    form button[type="submit"]:focus {
+        background-color: #1e4d17;
+        outline: none;
+    }
+
+    /* Mensajes */
+    .message {
+        padding: 12px 18px;
+        border-radius: 8px;
+        margin-bottom: 25px;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .error {
+        background-color: #b22222;
+        color: #fff;
+        border: 1px solid #7a1212;
+    }
+
+    .success {
+        background-color: #2e7d32;
+        color: #d0f0c0;
+        border: 1px solid #1b4f17;
+    }
+
+    /* TABLA DE ENTREGAS ASIGNADAS */
+    .asignadas {
+        background-color: #2a6824; /* Verde Oscuro para tabla */
+        padding: 25px 30px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        max-height: 420px;
+        overflow-y: auto;
+        color: #e6f2d9;
+    }
+
+    .asignadas h2 {
+        text-align: center;
+        margin-top: 0;
+        margin-bottom: 15px;
+        color: #cdebb0;
+        font-weight: 700;
+        font-size: 1.4rem;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+    }
+
+    th, td {
+        padding: 12px 10px;
+        border: 1px solid #1f4d0a;
+        text-align: center;
+        color: #d9f2b8;
+    }
+
+    th {
+        background-color: #006400;
+        color: #d9f2b8;
+        font-weight: 700;
+    }
+
+    tbody tr:nth-child(even) {
+        background-color: #3b7d2f88; /* Verde translúcido para filas pares */
+    }
+
+    /* Botones en tabla */
+    .acciones button {
+        padding: 6px 14px;
+        margin: 0 5px;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        color: white;
+        transition: background-color 0.25s ease;
+    }
+
+    .modificar-btn {
+        background-color: #388E3C;
+    }
+
+    .modificar-btn:hover {
+        background-color: #2C6E2F;
+    }
+
+    .eliminar-btn {
+        background-color: #D32F2F;
+    }
+
+    .eliminar-btn:hover {
+        background-color: #C62828;
+    }
+
+    /* Responsive para móviles */
+    @media (max-width: 780px) {
+        form {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        form .form-group, form button[type="submit"] {
+            flex: 1 1 100%;
+            margin-left: 0;
+        }
+    }
+</style>
+</head>
+<body>
+    <header class="navbar" role="banner">
+        Asignar Entrega
+    </header>
+
+    <main class="container" role="main" aria-labelledby="page-title">
+        <h1 id="page-title" style="display:none;">Formulario y lista para asignar entregas</h1>
+
+        {% if error_message %}
+            <div class="message error" role="alert">{{ error_message }}</div>
+        {% elif success_message %}
+            <div class="message success" role="status">{{ success_message }}</div>
+        {% endif %}
+
+        <section class="section-block" aria-labelledby="form-section-title">
+            <h2 id="form-section-title">Asignar Nueva Entrega</h2>
+
+            <form method="POST" novalidate aria-describedby="form-desc">
+                <p id="form-desc" style="display:none;">Seleccione conductor, vehículo y ruta para asignar una entrega.</p>
+
+                <div class="form-group">
+                    <label for="conductor_id">Seleccionar Conductor:</label>
+                    <select name="conductor_id" id="conductor_id" required aria-required="true">
+                        <option value="" disabled selected>Seleccione un conductor</option>
+                        {% for conductor in conductores %}
+                            <option value="{{ conductor.id_conductor }}">
+                                {{ conductor.nombre }}{% if conductor.apellido_paterno %} {{ conductor.apellido_paterno }}{% endif %}{% if conductor.apellido_materno %} {{ conductor.apellido_materno }}{% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="vehiculo_id">Seleccionar Vehículo:</label>
+                    <select name="vehiculo_id" id="vehiculo_id" required aria-required="true">
+                        <option value="" disabled selected>Seleccione un vehículo</option>
+                        {% for vehiculo in vehiculos %}
+                            <option value="{{ vehiculo.id_vehiculo }}">
+                                {{ vehiculo.placa }} - {{ vehiculo.tipo_vehiculo }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="ruta_id">Seleccionar Ruta:</label>
+                    <select name="ruta_id" id="ruta_id" required aria-required="true">
+                        <option value="" disabled selected>Seleccione una ruta</option>
+                        {% for ruta in rutas %}
+                            <option value="{{ ruta.id_ruta }}">{{ ruta.origen }} → {{ ruta.destino }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Mapa -->
+                <div id="map" style="height: 400px; margin-bottom: 20px; display:none;"></div>
+                <div id="ruta-info" style="text-align: center; margin-bottom: 20px; font-weight: bold; color: #d9f2b8;"></div>
+
+                <!-- Botón Confirmar (oculto al inicio) -->
+                <button type="submit" id="confirmar-btn" style="display:none;">Confirmar y asignar entrega</button>
+            </form>
+        </section>
+
+        {% if entregas_asignadas and entregas_asignadas|length > 0 %}
+        <section class="asignadas" aria-label="Lista de entregas asignadas">
+            <h2>Entregas Asignadas</h2>
+            <table role="grid" aria-describedby="table-desc">
+                <caption id="table-desc" style="display:none;">Tabla con la lista de entregas asignadas, conductores, vehículos, rutas, estado y fecha.</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Conductor</th>
+                        <th scope="col">Vehículo</th>
+                        <th scope="col">Ruta</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col">Fecha</th>
+                        <th scope="col">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entrega in entregas_asignadas %}
+                    <tr>
+                        <td>{{ entrega.nombre }}{% if entrega.apellido_paterno %} {{ entrega.apellido_paterno }}{% endif %}{% if entrega.apellido_materno %} {{ entrega.apellido_materno }}{% endif %}</td>
+                        <td>{{ entrega.placa }} - {{ entrega.tipo_vehiculo }}</td>
+                        <td>{{ entrega.origen }} → {{ entrega.destino }}</td>
+                        <td>{{ entrega.estado_entrega }}</td>
+                        <td>{{ entrega.fecha_entrega }}</td>
+                        <td class="acciones">
+                            <form method="POST" style="display:inline;">
+                                <input type="hidden" name="entrega_id" value="{{ entrega.id_entrega }}" />
+                                <button class="modificar-btn" type="submit" name="accion" value="modificar" aria-label="Modificar entrega {{ entrega.id_entrega }}">Modificar</button>
+                                <button class="eliminar-btn" type="submit" name="accion" value="eliminar" aria-label="Eliminar entrega {{ entrega.id_entrega }}">Eliminar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+        {% endif %}
+    </main>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+    <!-- Script para calcular la ruta -->
+    <script>
+    document.getElementById('ruta_id').addEventListener('change', function() {
+        const rutaId = this.value;
+        if (!rutaId) return;
+
+        fetch(`/calcular_ruta_optima/${rutaId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                // Mostrar mapa y ruta info
+                document.getElementById('map').style.display = 'block';
+                document.getElementById('ruta-info').innerHTML =
+                    `Camino óptimo: ${data.camino_optimo.join(' → ')} <br>
+                     Distancia total: ${data.distancia_total} km`;
+
+                document.getElementById('confirmar-btn').style.display = 'inline-block';
+
+                // Crear mapa
+                const map = L.map('map').setView([-17.4, -66.15], 6); // Bolivia centro aprox
+
+                // Añadir capa de tiles
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(map);
+
+                // Limpiar capas anteriores
+                if (window.rutaLayer) {
+                    map.removeLayer(window.rutaLayer);
+                }
+
+                // Diccionario de coordenadas (debes completarlo con tus nodos reales!)
+                const coordenadas = {
+                    "Irpa Irpa": [-17.420, -66.132],
+                    "Colomi": [-17.356, -65.775],
+                    "Villa Tunari": [-16.966, -65.427],
+                    "Chimoré": [-16.989, -65.159],
+                    "Yapacaní": [-17.402, -63.879],
+                    "Santa Cruz": [-17.783, -63.182],
+                    // agrega más nodos aquí!
+                };
+
+                const camino = data.camino_optimo.map(nodo => coordenadas[nodo] || [0, 0]);
+
+                window.rutaLayer = L.polyline(camino, { color: 'green', weight: 5 }).addTo(map);
+                map.fitBounds(window.rutaLayer.getBounds());
+
+                // Dibujar tramos bloqueados (en rojo)
+                data.bloqueados.forEach(tramo => {
+                    const from = coordenadas[tramo.from];
+                    const to = coordenadas[tramo.to];
+                    if (from && to) {
+                        L.polyline([from, to], { color: 'red', weight: 3, dashArray: '10, 10' }).addTo(map);
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al calcular la ruta óptima.');
+            });
+    });
+    </script>
+</body>
+</html>

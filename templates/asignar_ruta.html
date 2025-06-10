@@ -1,0 +1,75 @@
+<!-- templates/asignar_ruta.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Asignar Rutas a Conductores</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+        }
+        .navbar {
+            background-color: #1976d2;
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+        .container {
+            padding: 20px;
+        }
+        .panel-option {
+            background-color: white;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        select, button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <h1>Asignar Rutas a Conductores</h1>
+    </div>
+    <div class="container">
+        <div class="panel-option">
+            <h2>Selecciona un Conductor y una Ruta</h2>
+            <form action="{{ url_for('asignar_ruta') }}" method="POST">
+                <label for="conductor">Selecciona un Conductor:</label>
+                <select name="conductor" id="conductor" required>
+                    {% for conductor in conductores %}
+                        <option value="{{ conductor.id_conductor }}">{{ conductor.nombre }}</option>
+                    {% endfor %}
+                </select>
+
+                <label for="ruta">Selecciona una Ruta:</label>
+                <select name="ruta" id="ruta" required>
+                    {% for ruta in rutas %}
+                        <option value="{{ ruta.id_ruta }}">{{ ruta.origen }} - {{ ruta.destino }}</option>
+                    {% endfor %}
+                </select>
+
+                <button type="submit">Asignar Ruta</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

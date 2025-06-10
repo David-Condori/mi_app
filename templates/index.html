@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>COBOCE - Gestión de Distribución</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: url("{{ url_for('static', filename='fotos/coboce.jpg') }}") no-repeat center center fixed;
+            background-size: 1600px 800px;
+            text-align: center;
+            padding-top: 50px;
+            color: white; /* para que el texto sea visible sobre la imagen */
+        }
+        .container {
+            background: rgba(0, 0, 0, 0.5); /* fondo semitransparente para el texto */
+            width: 60%;
+            margin: auto;
+            padding: 2em;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #fff;
+        }
+        a.button {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #1976d2;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        a.button:hover {
+            background-color: #0d47a1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>BIENVENIDOS AL SISTEMA DE GESTIÓN DE DISTRIBUCIÓN - COBOCE CEMENTO</h1>
+        <p>ES HORA DE DESCUBRIR EL SISTEMA.</p>
+        <a href="/login" class="button">VAMOS 🚚</a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de Incidente</title>
+    <style>
+        body {
+            background-color: #004d00;
+            color: white;
+            font-family: Arial;
+            padding: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border-radius: 6px;
+            border: none;
+            resize: none;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background-color: #1e88e5;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Enviar Mensaje de Incidente</h1>
+    <form method="POST">
+        <label for="mensaje">Mensaje / Incidente:</label><br>
+        <textarea name="mensaje" required></textarea><br>
+        <button type="submit">Enviar</button>
+    </form>
+</body>
+</html>

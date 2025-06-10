@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Iniciar Sesión - COBOCE</title>
+    <style>
+        body {
+            /* Fondo con imagen */
+            background: url("{{ url_for('static', filename='fotos/log.jpg') }}") no-repeat center center fixed;
+            background-size: 1600px 800px;
+
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: black; /* Negro para el texto */
+            margin: 0; /* eliminar margen */
+        }
+        .login-container {
+            background-color: rgba(255, 255, 255, 0.1); /* Soft Green con opacidad */
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            width: 300px;
+        }
+        h2 {
+            color: black; /* Negro para el título */
+            margin-bottom: 10px;
+        }
+        p.instruction {
+            font-size: 14px;
+            color: black; /* Negro para la instrucción */
+            margin-bottom: 20px;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background-color: #388e3c; /* Soft Green */
+            color: white;
+            padding: 10px;
+            width: 100%;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #2c6b2f; /* Darker Green */
+        }
+        .error-message {
+            color: red;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h2>INICIAR SECCIÓN</h2>
+        <p class="instruction">Admin, Super, Cond.</p>
+
+        {% if error %}
+            <div class="error-message">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="/login">
+            <input type="text" name="username" placeholder="User Name" required>
+            <input type="password" name="password" placeholder="Password" required>
+            <button type="submit">Ingresar</button>
+        </form>
+    </div>
+</body>
+</html>

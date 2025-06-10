@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Vehículos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f3f4f6;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+        }
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #ccc;
+            text-align: left;
+        }
+        th {
+            background-color: #006400; /* dark green */
+            color: white;
+        }
+        h1 {
+            color: #004d00; /* darker green for heading */
+        }
+        .button {
+            background-color: #006400; /* dark green */
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .button:hover {
+            background-color: #004d00; /* darker green on hover */
+        }
+        .button-danger {
+            background-color: red;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .button-danger:hover {
+            background-color: darkred;
+        }
+    </style>
+</head>
+<body>
+    <h1>Listado de Vehículos</h1>
+    <a href="{{ url_for('agregar_vehiculo') }}" class="button">Agregar Vehículo</a>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Placa</th>
+                <th>Modelo</th>
+                <th>Tipo de Vehículo</th>
+                <th>Capacidad</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in vehiculos %}
+            <tr>
+                <td>{{ v.id_vehiculo }}</td>
+                <td>{{ v.placa }}</td>
+                <td>{{ v.modelo }}</td>
+                <td>{{ v.tipo_vehiculo }}</td>
+                <td>{{ v.capacidad }}</td>
+                <td>
+                    <a href="{{ url_for('editar_vehiculo', id_vehiculo=v.id_vehiculo) }}" class="button">Editar</a>
+                    <form action="{{ url_for('eliminar_vehiculo', id_vehiculo=v.id_vehiculo) }}" method="POST" style="display:inline;">
+                        <button type="submit" class="button-danger">Eliminar</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
+
+
+
+
+
+
+
+

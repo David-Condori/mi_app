@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Modificar Entrega</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #006400;
+            margin: 0;
+            padding: 0;
+            color: #000;
+        }
+
+        .navbar {
+            background-color: #004d00;
+            color: #fff;
+            padding: 20px 10px;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+        }
+
+        .navbar h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+
+        .container {
+            max-width: 480px;
+            background-color: #a8d08d;
+            margin: 30px auto;
+            padding: 25px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #153d00;
+            font-size: 1rem;
+        }
+
+        select {
+            width: 100%;
+            padding: 11px 14px;
+            font-size: 1rem;
+            border: 2px solid #3b621d;
+            border-radius: 6px;
+            background-color: #e8f5d8;
+            transition: border-color 0.25s ease;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #2b5000;
+            background-color: #d7edb0;
+        }
+
+        button {
+            width: 100%;
+            background-color: #388e3c;
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: 700;
+            padding: 14px 0;
+            border: none;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 3px 7px rgba(0,0,0,0.15);
+        }
+
+        button:hover,
+        button:focus {
+            background-color: #2c6b2f;
+            outline: none;
+        }
+
+        a {
+            display: block;
+            margin-top: 20px;
+            text-align: center;
+            color: #003300;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 520px) {
+            .container {
+                margin: 20px 10px;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="navbar">
+        <h1>Modificar Entrega</h1>
+    </header>
+
+    <main class="container">
+        <form method="POST">
+            <div class="form-group">
+                <label for="conductor_id">Seleccionar Conductor:</label>
+                <select name="conductor_id" id="conductor_id" required>
+                    {% for conductor in conductores %}
+                        <option value="{{ conductor.id_conductor }}" {% if conductor.id_conductor == entrega.id_conductor %}selected{% endif %}>
+                            {{ conductor.nombre }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="vehiculo_id">Seleccionar Vehículo:</label>
+                <select name="vehiculo_id" id="vehiculo_id" required>
+                    {% for vehiculo in vehiculos %}
+                        <option value="{{ vehiculo.id_vehiculo }}" {% if vehiculo.id_vehiculo == entrega.id_vehiculo %}selected{% endif %}>
+                            {{ vehiculo.placa }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="ruta_id">Seleccionar Ruta:</label>
+                <select name="ruta_id" id="ruta_id" required>
+                    {% for ruta in rutas %}
+                        <option value="{{ ruta.id_ruta }}" {% if ruta.id_ruta == entrega.id_ruta %}selected{% endif %}>
+                            {{ ruta.ruta }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="estado_entrega">Estado de la Entrega:</label>
+                <select name="estado_entrega" id="estado_entrega" required>
+                    <option value="Asignada" {% if entrega.estado_entrega == 'Asignada' %}selected{% endif %}>Asignada</option>
+                    <option value="En Ruta" {% if entrega.estado_entrega == 'En Ruta' %}selected{% endif %}>En Ruta</option>
+                    <option value="Entregada" {% if entrega.estado_entrega == 'Entregada' %}selected{% endif %}>Entregada</option>
+                </select>
+            </div>
+
+            <button type="submit">Guardar Cambios</button>
+        </form>
+
+        <a href="{{ url_for('asignar_entrega') }}">← Volver a la lista de entregas</a>
+    </main>
+</body>
+</html>

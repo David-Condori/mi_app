@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Notificaciones de Conductores</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1b3b1b; /* Fondo verde oscuro */
+            margin: 0;
+            padding: 0;
+            color: white; /* Texto blanco general */
+        }
+
+        .navbar {
+            background-color: #2e7d32;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .navbar h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            background-color: #2d462d; /* fondo más claro para el contenido */
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.15);
+        }
+
+        h2 {
+            color: #c8e6c9;
+            margin-bottom: 25px;
+            font-size: 24px;
+            border-bottom: 2px solid #81c784;
+            padding-bottom: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            table-layout: fixed;
+        }
+
+        th, td {
+            border: 1px solid #aaa;
+            padding: 12px 10px;
+            text-align: left;
+            word-wrap: break-word;
+            color: white;
+        }
+
+        th {
+            background-color: #388e3c;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #3a5f3a;
+        }
+
+        tr:hover {
+            background-color: #4c7c4c;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 20px;
+            background-color: #fff3cd;
+            color: #333;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .btn {
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-eliminar {
+            background-color: #c62828;
+            color: white;
+        }
+
+        .btn-eliminar:hover {
+            background-color: #b71c1c;
+        }
+
+        .btn-leido {
+            background-color: #0288d1;
+            color: white;
+            margin-top: 5px;
+        }
+
+        .btn-leido:hover {
+            background-color: #0277bd;
+        }
+
+        .estado-leido {
+            font-weight: bold;
+            color: #66ff66;
+        }
+
+        .estado-no-leido {
+            font-weight: bold;
+            color: #ff6666;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h1>Panel del Supervisor</h1>
+</div>
+
+<div class="container">
+    <h2>📢 Notificaciones de Conductores</h2>
+
+    {% if notificaciones %}
+    <table>
+        <thead>
+            <tr>
+                <th>👨‍✈️ Conductor</th>
+                <th>📝 Mensaje</th>
+                <th>📅 Fecha</th>
+                <th>🚗 Placa</th>
+                <th>📍 Origen</th>
+                <th>🎯 Destino</th>
+                <th>📌 Estado</th>
+                <th>🗑️ Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for n in notificaciones %}
+            <tr>
+                <td>{{ n.nombre }} {{ n.apellido_paterno }} {{ n.apellido_materno }}</td>
+                <td>{{ n.mensaje }}</td>
+                <td>{{ n.fecha_envio }}</td>
+                <td>{{ n.placa }}</td>
+                <td>{{ n.origen }}</td>
+                <td>{{ n.destino }}</td>
+                <td>
+                    {% if n.leido %}
+                        <span class="estado-leido">Leído</span>
+                    {% else %}
+                        <form method="POST" action="{{ url_for('marcar_leido', id_notificacion=n.id_notificacion) }}">
+                            <button type="submit" class="btn btn-leido">Marcar como leído</button>
+                        </form>
+                    {% endif %}
+                </td>
+                <td>
+
+                    <!-- Botón Responder -->
+    <button type="button" class="btn btn-responder" onclick="mostrarFormularioRespuesta({{ n.id_notificacion }})">Responder</button>
+
+    <!-- Formulario de Respuesta (oculto al inicio) -->
+    <div id="form-respuesta-{{ n.id_notificacion }}" class="form-respuesta" style="display:none; margin-top: 5px;">
+        <form method="POST" action="{{ url_for('responder_notificacion', id_notificacion=n.id_notificacion) }}">
+            <textarea name="mensaje" placeholder="Escribe tu respuesta..." required></textarea>
+            <br>
+            <button type="submit" class="btn btn-leido">Enviar respuesta</button>
+        </form>
+    </div>
+
+                    <form method="POST" action="{{ url_for('eliminar_notificacion', id_notificacion=n.id_notificacion) }}" onsubmit="return confirm('¿Deseas eliminar esta notificación?');">
+                        <button type="submit" class="btn btn-eliminar">Eliminar</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <div class="no-data">
+            ⚠️ No hay notificaciones registradas por los conductores.
+        </div>
+    {% endif %}
+</div>
+
+<script>
+function mostrarFormularioRespuesta(idNotificacion) {
+    var formId = "form-respuesta-" + idNotificacion;
+    var form = document.getElementById(formId);
+    if (form.style.display === "none") {
+        form.style.display = "block";
+    } else {
+        form.style.display = "none";
+    }
+}
+</script>
+
+</body>
+</html>

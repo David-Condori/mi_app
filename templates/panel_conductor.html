@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>CONDUCTOR</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: #006400;
+            color: black;
+        }
+        .navbar {
+            background-color: #004d00;
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+        .container {
+            padding: 20px;
+            max-width: 700px;
+            margin: auto;
+        }
+        .entrega {
+            background-color: #a8d08d;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            color: #153d00;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        #map {
+            height: 400px;
+            width: 100%;
+            margin-top: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        h1, h2 {
+            color: white;
+            text-align: center;
+        }
+        .btn-reporte, .btn-entregado {
+            margin-top: 10px;
+            margin-right: 8px;
+            padding: 6px 14px;
+            font-size: 0.9rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: white;
+            transition: background-color 0.3s ease;
+        }
+        .btn-reporte {
+            background-color: #1e88e5;
+        }
+        .btn-reporte:hover {
+            background-color: #1565c0;
+        }
+        .btn-entregado {
+            background-color: #388E3C;
+        }
+        .btn-entregado:hover {
+            background-color: #2C6E2F;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <h1>BIENVENIDO SEÑOR CONDUCTOR</h1>
+    </div>
+
+    <div class="container">
+        <h2>Entregas Asignadas</h2>
+
+        {% if mensaje == 'reporte_enviado' %}
+            <div id="mensaje-exito" style="background-color: #dff0d8; color: #3c763d; padding: 10px; border-radius: 5px; margin-bottom: 15px; text-align: center; font-weight: bold;">
+                ✅ ¡Reporte enviado con éxito!
+            </div>
+            <script>
+                setTimeout(() => {
+                    const msg = document.getElementById('mensaje-exito');
+                    if (msg) {
+                        msg.style.display = 'none';
+                    }
+                }, 4000);
+            </script>
+        {% endif %}
+
+        {% if entregas %}
+            {% for entrega in entregas %}
+                <div class="entrega">
+                    <p><strong>Conductor:</strong> {{ entrega.nombre_conductor }}</p>
+                    <p><strong>Placa del Vehículo:</strong> {{ entrega.placa }}</p>
+                    <p><strong>Origen:</strong> {{ entrega.origen }}</p>
+                    <p><strong>Destino:</strong> {{ entrega.destino }}</p>
+                    <p><strong>Fecha de Entrega:</strong> {{ entrega.fecha_entrega }}</p>
+                    <p><strong>Estado de la Entrega:</strong> {{ entrega.estado_entrega }}</p>
+
+                    <form action="{{ url_for('enviar_notificacion') }}" method="POST">
+                        <input type="hidden" name="id_entrega" value="{{ entrega.id_entrega }}">
+                        <label for="mensaje">Mensaje / Incidente:</label><br>
+                        <textarea name="mensaje" rows="3" cols="40" required></textarea><br>
+                        <button type="submit" class="btn-reporte">Enviar Notificación</button>
+                    </form>
+
+                    <form action="{{ url_for('marcar_entrega_entregada', id_entrega=entrega.id_entrega) }}" method="POST" style="display:inline;">
+                        <button class="btn-entregado" type="submit">Entregado</button>
+                    </form>
+
+                    <a href="https://www.google.com/maps/dir//{{ entrega.latitud_destino }},{{ entrega.longitud_destino }}" target="_blank">
+                        <button type="button" style="
+                            margin-top: 10px;
+                            padding: 8px 16px;
+                            background-color: #FF9800;
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-weight: bold;
+                        ">
+                            🚗 Navegar a Destino
+                        </button>
+                    </a>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="no-entregas" style="color:white;">No tienes entregas asignadas para hoy.</p>
+        {% endif %}
+
+        <!-- SECCIÓN NUEVA: Respuestas del Supervisor -->
+        <h2>📬 Respuestas del Supervisor</h2>
+
+        {% if respuestas %}
+        <table style="width:100%; border-collapse: collapse; margin-top: 10px;">
+            <thead>
+                <tr style="background-color:#004d00; color:white;">
+                    <th style="padding: 10px; border:1px solid #ccc;">📝 Mensaje</th>
+                    <th style="padding: 10px; border:1px solid #ccc;">📅 Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in respuestas %}
+                <tr style="background-color:#a8d08d; color:#153d00;">
+                    <td style="padding: 10px; border:1px solid #ccc;">{{ r.mensaje_respuesta }}</td>
+                    <td style="padding: 10px; border:1px solid #ccc;">{{ r.fecha_respuesta }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <p class="no-entregas" style="color:white; text-align:center; background-color:#ffcccb; padding:10px; border-radius:6px;">⚠️ No tienes respuestas del supervisor aún.</p>
+        {% endif %}
+    </div>
+
+    <h2>Ruta Asignada</h2>
+    <h3>Rutas recibidas:</h3>
+    <ul>
+      {% for ruta in rutas %}
+        <li>Origen: {{ ruta.origen }} ({{ ruta.latitud_origen }}, {{ ruta.longitud_origen }}), Destino: {{ ruta.destino }} ({{ ruta.latitud_destino }}, {{ ruta.longitud_destino }})</li>
+      {% endfor %}
+    </ul>
+    <div id="map"></div>
+
+    <script>
+        const map = L.map('map').setView([-17.3935, -66.1570], 7);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        const rutas = [
+        {% for ruta in rutas %}
+            {
+                origen: [{{ ruta.latitud_origen }}, {{ ruta.longitud_origen }}],
+                destino: [{{ ruta.latitud_destino }}, {{ ruta.longitud_destino }}],
+                origenTexto: "{{ ruta.origen }}",
+                destinoTexto: "{{ ruta.destino }}"
+            },
+        {% endfor %}
+        ];
+
+        const grupoRutas = L.featureGroup().addTo(map);
+
+        rutas.forEach(ruta => {
+            const markerOrigen = L.marker(ruta.origen).bindPopup("Origen: " + ruta.origenTexto);
+            const markerDestino = L.marker(ruta.destino).bindPopup("Destino: " + ruta.destinoTexto);
+
+            grupoRutas.addLayer(markerOrigen);
+            grupoRutas.addLayer(markerDestino);
+
+            fetch('/api/trazar_ruta', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    origen: [ruta.origen[1], ruta.origen[0]],
+                    destino: [ruta.destino[1], ruta.destino[0]]
+                })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error("API error");
+                return response.json();
+            })
+            .then(data => {
+                const route = L.geoJSON(data, {
+                    style: { color: 'blue', weight: 4 }
+                });
+                grupoRutas.addLayer(route);
+                map.fitBounds(grupoRutas.getBounds());
+            })
+            .catch(error => {
+                console.error('Error al cargar la ruta:', error);
+            });
+        });
+    </script>
+
+    <script>
+    const conductor_id = {% if entregas and entregas[0].id_conductor is not none %}{{ entregas[0].id_conductor }}{% else %}null{% endif %};
+    let markerConductor = null;
+    let rutaEnTiempoReal = null;
+
+    const latitudDestino = {{ rutas[0].latitud_destino if rutas else 'null' }};
+    const longitudDestino = {{ rutas[0].longitud_destino if rutas else 'null' }};
+
+    function actualizarUbicacionConductor() {
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(position => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+
+                if (!markerConductor) {
+                    markerConductor = L.marker([lat, lng], {
+                        icon: L.icon({
+                            iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+                            iconSize: [30, 30],
+                            iconAnchor: [15, 30],
+                            popupAnchor: [0, -30]
+                        })
+                    }).addTo(map).bindPopup('🚚 Ubicación actual del conductor');
+                } else {
+                    markerConductor.setLatLng([lat, lng]);
+                }
+
+                // Enviar ubicación al servidor
+                fetch('/actualizar_ubicacion', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        latitud: lat,
+                        longitud: lng
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Ubicación enviada al servidor:', data);
+                })
+                .catch(error => {
+                    console.error('Error al enviar ubicación:', error);
+                });
+
+                // Trazar línea en tiempo real a destino
+                if (latitudDestino !== null && longitudDestino !== null) {
+                    fetch('/api/trazar_ruta', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            origen: [lng, lat],
+                            destino: [longitudDestino, latitudDestino]
+                        })
+                    })
+                    .then(response => {
+                        if (!response.ok) throw new Error("API error");
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (rutaEnTiempoReal) {
+                            map.removeLayer(rutaEnTiempoReal);
+                        }
+
+                        rutaEnTiempoReal = L.geoJSON(data, {
+                            style: { color: 'red', weight: 4, dashArray: '5, 5' }
+                        }).addTo(map);
+                    })
+                    .catch(error => {
+                        console.error('Error al trazar ruta tiempo real:', error);
+                    });
+                }
+
+            }, error => {
+                console.error('Error al obtener la ubicación:', error);
+            }, {
+                enableHighAccuracy: true
+            });
+        } else {
+            alert('Tu navegador no soporta Geolocalización.');
+        }
+    }
+
+    actualizarUbicacionConductor();
+    </script>
+</body>
+</html>
