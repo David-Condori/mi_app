@@ -24,6 +24,7 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--verde-oscuro);
             color: var(--blanco-texto);
+            min-height: 100vh;
         }
 
         .navbar {
@@ -31,11 +32,30 @@
             padding: 20px;
             text-align: center;
             box-shadow: 0 2px 10px var(--sombra);
+            position: relative;
         }
 
         .navbar h1 {
             font-size: 32px;
             color: white;
+        }
+
+        .btn-logout {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background-color: #e74c3c;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+            box-shadow: 0 2px 10px var(--sombra);
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-logout:hover {
+            background-color: #c0392b;
         }
 
         .container {
@@ -97,6 +117,7 @@
 <body>
     <div class="navbar">
         <h1>ADMINISTRADOR_COBOCE-CEMENTO</h1>
+        <a href="{{ url_for('logout') }}" class="btn-logout">Salir</a>
     </div>
 
     <div class="container">
@@ -129,6 +150,16 @@
             <h3>Entregas Asignadas</h3>
             <p>Visualizar todas las entregas asignadas</p>
             <a href="{{ url_for('admin_entregas') }}" class="button">Ver Entregas</a>
+        </div>
+        <div class="card">
+            <h3>Pedidos</h3>
+            <p>Ver pedidos realizados por clientes</p>
+            <a href="{{ url_for('ver_pedidos') }}" class="button">Ver Pedidos</a>
+        </div>
+        <div class="card">
+            <h3>Reporte de Vehículos</h3>
+            <p>Visualiza el estado de entregas por vehículos y conductores</p>
+            <a href="{{ url_for('reporte_vehiculos') }}" class="button">Ver Reporte</a>
         </div>
     </div>
 </body>

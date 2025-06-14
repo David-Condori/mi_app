@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Formulario de Pedido - COBOCE</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #134e27; /* verde oscuro */
+            margin: 0;
+            padding: 0;
+            color: #000000; /* texto negro */
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: #a5d6a7; /* verde claro para contraste */
+            padding: 30px 35px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            border: 2px solid #4caf50;
+            color: #000000; /* texto negro */
+        }
+        h1 {
+            text-align: center;
+            color: #000000;
+            margin-bottom: 30px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+        }
+        form label {
+            display: block;
+            margin-top: 18px;
+            font-weight: 700;
+            color: #000000;
+        }
+        form input[type="text"],
+        form input[type="number"],
+        form select {
+            width: 100%;
+            padding: 12px 15px;
+            margin-top: 6px;
+            border: 2px solid #4caf50;
+            border-radius: 8px;
+            font-size: 1.05rem;
+            background: #e8f5e9; /* verde muy claro para fondo inputs */
+            color: #000000; /* texto negro */
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        form input[type="text"]:focus,
+        form input[type="number"]:focus,
+        form select:focus {
+            outline: none;
+            border-color: #388e3c;
+            box-shadow: 0 0 10px #81c784;
+            background: #c8e6c9;
+            color: #000000;
+        }
+        button {
+            margin-top: 30px;
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(45deg, #4caf50, #81c784);
+            border: none;
+            color: #000000; /* texto negro */
+            font-size: 1.25rem;
+            font-weight: 800;
+            cursor: pointer;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px #2e7d32;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+        button:hover {
+            background: linear-gradient(45deg, #aed581, #c5e1a5);
+            color: #000000;
+        }
+        .info-maps {
+            margin-top: 20px;
+            font-size: 0.95rem;
+            color: #000000;
+            background: #dcedc8;
+            border: 1.5px solid #a5d6a7;
+            padding: 15px 18px;
+            border-radius: 10px;
+            line-height: 1.5;
+        }
+        .info-maps a {
+            color: #2e7d32;
+            font-weight: 700;
+            text-decoration: underline;
+        }
+        ul.flashes {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 20px 0;
+        }
+        ul.flashes li {
+            padding: 14px 20px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            font-weight: 700;
+            text-align: center;
+            font-size: 1rem;
+            color: #000000;
+        }
+        ul.flashes li.success {
+            background-color: #a5d6a7;
+            border: 1.5px solid #4caf50;
+            box-shadow: 0 0 10px #81c784;
+        }
+        ul.flashes li.error {
+            background-color: #ef9a9a;
+            border: 1.5px solid #e57373;
+            box-shadow: 0 0 10px #e57373;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Realizar Pedido - COBOCE</h1>
+
+        <!-- Mostrar mensajes flash -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <ul class="flashes">
+              {% for category, message in messages %}
+                <li class="{{ 'success' if category == 'message' else 'error' }}">{{ message }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('pedido') }}">
+            <label for="cliente_nombre">Nombre completo:</label>
+            <input type="text" id="cliente_nombre" name="cliente_nombre" placeholder="Ej: Juan Pérez" required />
+
+            <label for="cliente_telefono">Teléfono:</label>
+            <input type="text" id="cliente_telefono" name="cliente_telefono" placeholder="Ej: 78901234" required />
+
+            <label for="nombre_lugar">Nombre del lugar (ferretería, barrio, etc.):</label>
+            <input type="text" id="nombre_lugar" name="nombre_lugar" placeholder="Ej: Ferretería El Progreso" required />
+
+            <label for="latitud">Latitud:</label>
+            <input type="text" id="latitud" name="latitud" placeholder="Ej: -17.393123" required />
+
+            <label for="longitud">Longitud:</label>
+            <input type="text" id="longitud" name="longitud" placeholder="Ej: -66.158456" required />
+
+            <div class="info-maps">
+                Para obtener la <strong>latitud y longitud</strong>, por favor abre <a href="https://www.google.com/maps/@-17.3925,-66.1570,12z" target="_blank" rel="noopener noreferrer">Google Maps</a>, busca tu dirección exacta, haz clic derecho sobre el lugar, selecciona <em>"¿Qué hay aquí?"</em> y copia las coordenadas que aparecen en la parte inferior. Luego, pégalas en los campos de latitud y longitud arriba.
+            </div>
+
+            <label for="producto">Producto:</label>
+            <select id="producto" name="producto" required>
+                <option value="">-- Seleccione un producto --</option>
+                <option value="CEMENTO IP-40">CEMENTO IP-40</option>
+                <option value="CEMENTO IP-30">CEMENTO IP-30</option>
+                <option value="CEMENTO IP-25">CEMENTO IP-25</option>
+                <option value="YESO">YESO</option>
+                <option value="CEMENTO COLA">CEMENTO COLA</option>
+                <option value="CEMENTO COBO MIX REVOQUE">CEMENTO COBO MIX REVOQUE</option>
+            </select>
+
+            <label for="cantidad">Cantidad (bolsas):</label>
+            <input type="number" id="cantidad" name="cantidad" min="1" placeholder="Ej: 10" required />
+
+            <label for="metodo_pago">Método de pago:</label>
+            <select id="metodo_pago" name="metodo_pago" required>
+                <option value="">-- Seleccione un método --</option>
+                <option value="Efectivo">Efectivo</option>
+                <option value="Tarjeta">Tarjeta</option>
+                <option value="Transferencia">Transferencia</option>
+            </select>
+
+            <button type="submit">Enviar Pedido</button>
+        </form>
+    </div>
+</body>
+</html>

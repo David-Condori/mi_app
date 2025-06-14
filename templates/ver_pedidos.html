@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Pedidos Realizados - COBOCE</title>
+    <style>
+        :root {
+            --verde-oscuro: #004225;
+            --verde-claro: #007f5c;
+            --verde-hover: #00593b;
+            --blanco: #ffffff;
+            --gris-claro: #f0f0f0;
+            --gris-texto: #cccccc;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--verde-oscuro);
+            color: var(--blanco);
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: var(--verde-claro);
+            padding: 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 28px;
+            color: var(--blanco);
+        }
+
+        .container {
+            padding: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: var(--gris-claro);
+            color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 14px;
+            text-align: center;
+            border-bottom: 1px solid #ccc;
+        }
+
+        th {
+            background-color: var(--verde-claro);
+            color: white;
+        }
+
+        tr:hover {
+            background-color: #e2f0e9;
+        }
+
+        .btn-volver {
+            margin-top: 25px;
+            display: inline-block;
+            background-color: var(--verde-claro);
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-volver:hover {
+            background-color: var(--verde-hover);
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        /* Nuevo botón asignar */
+        .btn-asignar {
+            background-color: var(--verde-claro);
+            color: white;
+            padding: 8px 14px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .btn-asignar:hover {
+            background-color: var(--verde-hover);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>📦 Pedidos Realizados</h1>
+    </header>
+
+    <div class="container">
+        {% if pedidos %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th>Teléfono</th>
+                    <th>Ubicación</th>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Método de Pago</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                    {% if session['rol'] == 'supervisor' %}
+                    <th>Acción</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for pedido in pedidos %}
+                <tr>
+                    <td>{{ pedido.cliente_nombre }}</td>
+                    <td>{{ pedido.cliente_telefono }}</td>
+                    <td>{{ pedido.nombre_lugar }}</td>
+                    <td>{{ pedido.producto }}</td>
+                    <td>{{ pedido.cantidad }}</td>
+                    <td>{{ pedido.metodo_pago }}</td>
+                    <td>{{ pedido.fecha_pedido.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>{{ pedido.estado }}</td>
+                    {% if session['rol'] == 'supervisor' %}
+                    <td>
+                        {% if pedido.estado|lower == 'pendiente' %}
+                        <form action="{{ url_for('asignar_entrega') }}" method="get" style="margin:0;">
+                            <input type="hidden" name="pedido_id" value="{{ pedido.id_pedido }}">
+                            <button type="submit" class="btn-asignar">Asignar</button>
+                        </form>
+                        {% else %}
+                        <button class="btn-asignar" disabled>Asignado</button>
+                        {% endif %}
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="center">No hay pedidos registrados aún.</p>
+        {% endif %}
+
+        <div class="center">
+            <a href="{{ url_for('dashboard') }}" class="btn-volver">🔙 Volver al Panel</a>
+        </div>
+    </div>
+</body>
+</html>
+

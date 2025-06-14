@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reporte de Vehículos - COBOCE</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #064420; /* verde oscuro */
+            color: #e0f2e9; /* verde claro */
+        }
+        header {
+            background-color: #045c2f;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        }
+        header h1 {
+            margin: 0;
+            font-weight: 700;
+            font-size: 1.8rem;
+            color: #a4d4a5;
+        }
+        nav a {
+            color: #a4d4a5;
+            text-decoration: none;
+            font-weight: 600;
+            margin-left: 1.5rem;
+            transition: color 0.3s ease;
+        }
+        nav a:hover {
+            color: #d1f0d2;
+        }
+        main {
+            max-width: 1100px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 1rem;
+            font-weight: 700;
+            color: #b8e4b1;
+        }
+        section {
+            margin-bottom: 3rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+        }
+        th, td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #3a6a39;
+            text-align: left;
+        }
+        th {
+            background-color: #0c6f2f;
+            color: #d0f0c0;
+            font-weight: 700;
+        }
+        tr:nth-child(even) {
+            background-color: #0b5c28;
+        }
+        tr:hover {
+            background-color: #0d7f33;
+            cursor: default;
+        }
+        .estado-pendiente {
+            color: #f0ad4e; /* naranja */
+            font-weight: 600;
+        }
+        .estado-entregado {
+            color: #5cb85c; /* verde */
+            font-weight: 600;
+        }
+        .estado-asignada {
+            color: #0275d8; /* azul */
+            font-weight: 600;
+        }
+        .estado-incidente {
+            color: #d9534f; /* rojo */
+            font-weight: 600;
+        }
+        footer {
+            text-align: center;
+            padding: 1rem 0;
+            font-size: 0.9rem;
+            color: #a4d4a5;
+            border-top: 1px solid #045c2f;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>COBOCE - Reporte de Vehículos</h1>
+        <nav>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('ver_pedidos') }}">Pedidos</a>
+            <a href="{{ url_for('asignar_entrega') }}">Asignar Entrega</a>
+        </nav>
+    </header>
+    <main>
+        <h2>Resumen de Entregas por Estado</h2>
+
+        <section>
+            <h3>Entregas Pendientes</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Conductor</th>
+                        <th>Vehículo</th>
+                        <th>Ruta</th>
+                        <th>Estado</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entrega in entregas_pendientes %}
+                    <tr>
+                        <td>{{ entrega.nombre }} {{ entrega.apellido_paterno }}</td>
+                        <td>{{ entrega.placa }}</td>
+                        <td>{{ entrega.origen }} → {{ entrega.destino }}</td>
+                        <td class="estado-pendiente">{{ entrega.estado_entrega }}</td>
+                        <td>{{ entrega.fecha_entrega }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align:center;">No hay entregas pendientes.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section>
+            <h3>Entregas Entregadas</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Conductor</th>
+                        <th>Vehículo</th>
+                        <th>Ruta</th>
+                        <th>Estado</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entrega in entregas_entregadas %}
+                    <tr>
+                        <td>{{ entrega.nombre }} {{ entrega.apellido_paterno }}</td>
+                        <td>{{ entrega.placa }}</td>
+                        <td>{{ entrega.origen }} → {{ entrega.destino }}</td>
+                        <td class="estado-entregado">{{ entrega.estado_entrega }}</td>
+                        <td>{{ entrega.fecha_entrega }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align:center;">No hay entregas entregadas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section>
+            <h3>Entregas Asignadas</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Conductor</th>
+                        <th>Vehículo</th>
+                        <th>Ruta</th>
+                        <th>Estado</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entrega in entregas_asignadas %}
+                    <tr>
+                        <td>{{ entrega.nombre }} {{ entrega.apellido_paterno }}</td>
+                        <td>{{ entrega.placa }}</td>
+                        <td>{{ entrega.origen }} → {{ entrega.destino }}</td>
+                        <td class="estado-asignada">{{ entrega.estado_entrega }}</td>
+                        <td>{{ entrega.fecha_entrega }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align:center;">No hay entregas asignadas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section>
+            <h3>Incidentes Reportados</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Conductor</th>
+                        <th>Vehículo</th>
+                        <th>Ruta</th>
+                        <th>Estado</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entrega in entregas_incidentes %}
+                    <tr>
+                        <td>{{ entrega.nombre }} {{ entrega.apellido_paterno }}</td>
+                        <td>{{ entrega.placa }}</td>
+                        <td>{{ entrega.origen }} → {{ entrega.destino }}</td>
+                        <td class="estado-incidente">{{ entrega.estado_entrega }}</td>
+                        <td>{{ entrega.fecha_entrega }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align:center;">No hay incidentes reportados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </main>
+    <footer>
+        &copy; 2025 COBOCE - Todos los derechos reservados
+    </footer>
+</body>
+</html>

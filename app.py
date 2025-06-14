@@ -1,12 +1,14 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, session
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash
 import mysql.connector
 from datetime import datetime
 from geopy.geocoders import Nominatim
 import heapq
+import traceback
+
+
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'  # Necesario para gestionar sesiones
-
 
 host = 'Davidcondori.mysql.pythonanywhere-services.com'
 user = 'Davidcondori'
@@ -547,40 +549,60 @@ def asignar_entrega():
         else:
             conductor_id = request.form['conductor_id']
             vehiculo_id = request.form['vehiculo_id']
-            ruta_id = request.form['ruta_id']
+            pedido_id = request.form.get('pedido_id')  # seleccionamos un pedido
+            origen = request.form.get('origen')        # nuevo campo origen seleccionado
 
-            if not conductor_id or not vehiculo_id or not ruta_id:
+            if not conductor_id or not vehiculo_id or not pedido_id or not origen:
                 error_message = "Todos los campos son obligatorios."
             else:
                 try:
-                    # Verificar si la ruta ya tiene coordenadas
-                    cursor.execute("SELECT * FROM Rutas WHERE id_ruta = %s", (ruta_id,))
+                    # Obtener datos del pedido con id
+                    cursor.execute("""
+                        SELECT * FROM Pedidos WHERE id = %s AND estado = 'Pendiente'
+                    """, (pedido_id,))
+                    pedido = cursor.fetchone()
+
+                    if not pedido:
+                        raise Exception("El pedido no existe o ya fue asignado.")
+
+                    destino = pedido["nombre_lugar"]
+                    lat_destino = pedido["latitud"]
+                    lon_destino = pedido["longitud"]
+
+                    # Verificar si ya existe esa ruta origen->destino
+                    cursor.execute("""
+                        SELECT * FROM Rutas WHERE origen = %s AND destino = %s
+                    """, (origen, destino))
                     ruta = cursor.fetchone()
 
-                    if ruta:
-                        lat_o, lon_o = ruta['latitud_origen'], ruta['longitud_origen']
-                        lat_d, lon_d = ruta['latitud_destino'], ruta['longitud_destino']
+                    if not ruta:
+                        # Obtener coordenadas del origen (desde la tabla Rutas por si ya tiene)
+                        cursor.execute("""
+                            SELECT latitud_origen, longitud_origen FROM Rutas WHERE origen = %s LIMIT 1
+                        """, (origen,))
+                        fila_origen = cursor.fetchone()
 
-                        # Si faltan coordenadas, tratamos de obtenerlas automáticamente
-                        if not all([lat_o, lon_o]):
-                            location = geolocator.geocode(ruta['origen'])
-                            if location:
-                                lat_o = location.latitude
-                                lon_o = location.longitude
-                                cursor.execute("""
-                                    UPDATE Rutas SET latitud_origen = %s, longitud_origen = %s
-                                    WHERE id_ruta = %s
-                                """, (lat_o, lon_o, ruta_id))
+                        if fila_origen and fila_origen['latitud_origen'] is not None and fila_origen['longitud_origen'] is not None:
+                            lat_origen = fila_origen['latitud_origen']
+                            lon_origen = fila_origen['longitud_origen']
+                        else:
+                            # Hacer geocoding para origen
+                            location_o = geolocator.geocode(origen)
+                            if location_o:
+                                lat_origen = location_o.latitude
+                                lon_origen = location_o.longitude
+                            else:
+                                raise Exception("No se pudo obtener coordenadas para el origen.")
 
-                        if not all([lat_d, lon_d]):
-                            location = geolocator.geocode(ruta['destino'])
-                            if location:
-                                lat_d = location.latitude
-                                lon_d = location.longitude
-                                cursor.execute("""
-                                    UPDATE Rutas SET latitud_destino = %s, longitud_destino = %s
-                                    WHERE id_ruta = %s
-                                """, (lat_d, lon_d, ruta_id))
+                        # Insertar nueva ruta con coordenadas
+                        cursor.execute("""
+                            INSERT INTO Rutas (origen, destino, latitud_origen, longitud_origen, latitud_destino, longitud_destino)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                        """, (origen, destino, lat_origen, lon_origen, lat_destino, lon_destino))
+                        ruta_id = cursor.lastrowid
+                        connection.commit()
+                    else:
+                        ruta_id = ruta['id_ruta']
 
                     # Insertar asignación
                     cursor.execute("""
@@ -589,13 +611,19 @@ def asignar_entrega():
                     """, (conductor_id, vehiculo_id, ruta_id))
                     id_asignacion = cursor.lastrowid
 
-                    # Insertar entrega
+                    # Insertar entrega y vincular al pedido
                     cursor.execute("""
-                        INSERT INTO Entregas (id_asignacion, fecha_entrega, estado_entrega)
-                        VALUES (%s, CURDATE(), 'pendiente')
-                    """, (id_asignacion,))
+                        INSERT INTO Entregas (id_asignacion, id_pedido, fecha_entrega, estado_entrega)
+                        VALUES (%s, %s, CURDATE(), 'pendiente')
+                    """, (id_asignacion, pedido_id))
+
+                    # Cambiar estado del pedido
+                    cursor.execute("""
+                        UPDATE Pedidos SET estado = 'Asignado' WHERE id = %s
+                    """, (pedido_id,))
+
                     connection.commit()
-                    success_message = "Entrega asignada exitosamente."
+                    success_message = "Entrega asignada exitosamente con base en el pedido y origen seleccionado."
                 except Exception as e:
                     connection.rollback()
                     error_message = f"Error al asignar entrega: {e}"
@@ -607,8 +635,16 @@ def asignar_entrega():
     cursor.execute("SELECT id_vehiculo, placa, tipo_vehiculo FROM Vehiculos")
     vehiculos = cursor.fetchall()
 
-    cursor.execute("SELECT id_ruta, origen, destino FROM Rutas")
-    rutas = cursor.fetchall()
+    cursor.execute("SELECT DISTINCT origen, latitud_origen, longitud_origen FROM Rutas")
+    origenes = cursor.fetchall()
+
+    # Pedidos pendientes
+    cursor.execute("""
+        SELECT id, cliente_nombre, producto, cantidad, nombre_lugar
+        FROM Pedidos
+        WHERE estado = 'Pendiente'
+    """)
+    pedidos_pendientes = cursor.fetchall()
 
     # Entregas existentes
     cursor.execute("""
@@ -632,11 +668,11 @@ def asignar_entrega():
     return render_template('asignar_entrega.html',
                            conductores=conductores,
                            vehiculos=vehiculos,
-                           rutas=rutas,
+                           origenes=origenes,
+                           pedidos_pendientes=pedidos_pendientes,
                            entregas_asignadas=entregas_asignadas,
                            success_message=success_message,
                            error_message=error_message)
-
 
 @app.route('/modificar_entrega/<int:id_entrega>', methods=['GET', 'POST'])
 def modificar_entrega(id_entrega):
@@ -1314,128 +1350,245 @@ def cargar_grafo():
 
 
 # ===== Algoritmo Dijkstra =====
-def dijkstra(grafo, inicio, fin):
+def dijkstra(grafo, origen, destino):
 
+    # Inicialización
     distancias = {nodo: float('inf') for nodo in grafo}
-    distancias[inicio] = 0
-    padre = {nodo: None for nodo in grafo}
+    distancias[origen] = 0
+    predecesores = {}
+    visitados = set()
 
-    cola = []
-    heapq.heappush(cola, (0, inicio))
+    heap = [(0, origen)]
 
-    while cola:
-        distancia_actual, nodo_actual = heapq.heappop(cola)
+    while heap:
+        distancia_actual, nodo_actual = heapq.heappop(heap)
 
-        if nodo_actual == fin:
-            break
+        if nodo_actual in visitados:
+            continue
+        visitados.add(nodo_actual)
 
         for vecino, peso in grafo.get(nodo_actual, []):
             nueva_distancia = distancia_actual + peso
             if nueva_distancia < distancias[vecino]:
                 distancias[vecino] = nueva_distancia
-                padre[vecino] = nodo_actual
-                heapq.heappush(cola, (nueva_distancia, vecino))
+                predecesores[vecino] = nodo_actual
+                heapq.heappush(heap, (nueva_distancia, vecino))
 
     # Reconstruir el camino
     camino = []
-    nodo = fin
-    while nodo is not None:
-        camino.insert(0, nodo)
-        nodo = padre[nodo]
-
-    if distancias[fin] == float('inf'):
-        return float('inf'), []
-
-    return distancias[fin], camino
-
-@app.route('/calcular_ruta_optima/<int:ruta_id>')
-def calcular_ruta_optima(ruta_id):
+    nodo = destino
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        while nodo != origen:
+            camino.insert(0, nodo)
+            nodo = predecesores[nodo]
+        camino.insert(0, origen)
+    except KeyError:
+        raise Exception(f"No existe ruta óptima de {origen} a {destino}.")
 
-        cursor.execute("SELECT * FROM Rutas_Grafo")
-        rutas_db = cursor.fetchall()
+    return distancias[destino], camino
 
-        grafo = {}
-        for ruta in rutas_db:
-            origen = ruta['origen']
-            destino = ruta['destino']
-            distancia = ruta['distancia']
-            bloqueada = ruta['bloqueada']
-
-            if origen not in grafo:
-                grafo[origen] = []
-            if not bloqueada:
-                grafo[origen].append((destino, distancia))
-
-            if destino not in grafo:
-                grafo[destino] = []
-            if not bloqueada:
-                grafo[destino].append((origen, distancia))
+@app.route('/calcular_ruta_optima/<int:id_ruta>')
+def calcular_ruta_optima(id_ruta):
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
 
         # Obtener la ruta seleccionada
-        cursor.execute("SELECT * FROM Rutas WHERE id_ruta = %s", (ruta_id,))
-        ruta_db = cursor.fetchone()
+        cursor.execute("SELECT * FROM Rutas WHERE id_ruta = %s", (id_ruta,))
+        ruta = cursor.fetchone()
 
-        origen = ruta_db['origen']
-        destino = ruta_db['destino']
+        if not ruta:
+            cursor.close()
+            connection.close()
+            return jsonify({'error': 'Ruta no encontrada'}), 404
 
-        print(f"==> Calculando ruta Dijkstra de {origen} a {destino}")
+        origen = ruta['origen'].strip().lower()
+        destino = ruta['destino'].strip().lower()
 
-        # Verificar si origen y destino están en el grafo
-        if origen not in grafo or destino not in grafo:
-            print("==> Origen o destino no en grafo")
-            return jsonify({'error': 'Origen o destino no disponible en el grafo'}), 400
+        # Construir el grafo
+        cursor.execute("SELECT * FROM RutasDijkstra WHERE habilitado = 1")
+        edges = cursor.fetchall()
 
-        # Calcular Dijkstra
+        grafo = {}
+        for edge in edges:
+            ori = edge['origen'].strip().lower()
+            dest = edge['destino'].strip().lower()
+            peso = edge['peso']
+
+            if ori not in grafo:
+                grafo[ori] = []
+            grafo[ori].append((dest, peso))
+
+            if dest not in grafo:
+                grafo[dest] = []
+            grafo[dest].append((ori, peso))  # bidireccional
+
+        # Ejecutar Dijkstra
         distancia_total, camino_optimo = dijkstra(grafo, origen, destino)
 
-        print(f"==> Resultado Dijkstra: distancia={distancia_total}, camino={camino_optimo}")
+        cursor.close()
+        connection.close()
 
         return jsonify({
-            'camino_optimo': camino_optimo,
+            'camino': camino_optimo,
             'distancia_total': distancia_total
         })
 
     except Exception as e:
-        print(f"Error al calcular ruta: {e}")
-        return jsonify({'error': f'Error interno al calcular la ruta: {e}'}), 500
-    finally:
-        if conn:
+        app.logger.error(f"Error al calcular la ruta óptima: {e}")
+        traceback.print_exc()
+        return jsonify({'error': 'Error interno al calcular la ruta óptima.'}), 500
+
+
+
+@app.route('/ver_mapa')
+def ver_mapa():
+    import os
+    import folium
+
+    try:
+        # Coordenadas de ejemplo de Cochabamba
+        origen = [-17.3895, -66.1568]
+        destino = [-17.3926, -66.1600]
+
+        m = folium.Map(location=origen, zoom_start=13)
+        folium.Marker(location=origen, popup="Origen", icon=folium.Icon(color="green")).add_to(m)
+        folium.Marker(location=destino, popup="Destino", icon=folium.Icon(color="red")).add_to(m)
+
+        # Ruta válida dentro del static
+        mapa_file = 'mapa_cbb.html'
+        path = os.path.join('static', mapa_file)
+        m.save(path)
+
+        return render_template('ver_mapa.html', mapa_file=mapa_file)
+
+    except Exception as e:
+        app.logger.error(f"Error al generar el mapa: {e}")
+        return "Error al generar el mapa", 500
+
+@app.route('/pedido', methods=['GET', 'POST'])
+def pedido():
+    if request.method == 'POST':
+        try:
+            # Recolectar datos del formulario
+            cliente_nombre = request.form['cliente_nombre']
+            cliente_telefono = request.form['cliente_telefono']
+            nombre_lugar = request.form['nombre_lugar']
+            latitud = request.form['latitud']
+            longitud = request.form['longitud']
+            producto = request.form['producto']
+            cantidad = int(request.form['cantidad'])
+            metodo_pago = request.form['metodo_pago']
+
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                INSERT INTO Pedidos (
+                    cliente_nombre, cliente_telefono, nombre_lugar,
+                    latitud, longitud, producto, cantidad, metodo_pago
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (cliente_nombre, cliente_telefono, nombre_lugar,
+                  latitud, longitud, producto, cantidad, metodo_pago))
+
+            conn.commit()
+            cursor.close()
             conn.close()
 
-@app.route('/bloquear_ruta', methods=['POST'])
-def bloquear_ruta():
-    origen = request.form['origen']
-    destino = request.form['destino']
+            flash('✅ ¡Pedido enviado correctamente!')
+            return redirect(url_for('pedido'))  # Redirige después del POST exitoso
 
-    cursor = mysql.connection.cursor()
-    cursor.execute("""
-        UPDATE Rutas_Grafo
-        SET bloqueada = TRUE
-        WHERE origen = %s AND destino = %s
-    """, (origen, destino))
-    mysql.connection.commit()
+        except Exception as e:
+            traceback.print_exc()
+            flash('❌ Ocurrió un error al enviar el pedido.')
+
+    # Si es método GET o hubo error, mostrar el formulario
+    return render_template('pedido.html')
+
+@app.route('/ver_pedidos')
+def ver_pedidos():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM Pedidos ORDER BY fecha_pedido DESC")
+    pedidos = cursor.fetchall()
+
     cursor.close()
+    conn.close()
 
-    return redirect(url_for('seguimiento_entregas'))
+    return render_template('ver_pedidos.html', pedidos=pedidos)
 
-@app.route('/desbloquear_ruta', methods=['POST'])
-def desbloquear_ruta():
-    origen = request.form['origen']
-    destino = request.form['destino']
+@app.route('/reporte_vehiculos')
+def reporte_vehiculos():
+    connection = get_db_connection()
+    cursor = connection.cursor(dictionary=True)
 
-    cursor = mysql.connection.cursor()
+    # Pedidos con estado pendiente
     cursor.execute("""
-        UPDATE Rutas_Grafo
-        SET bloqueada = FALSE
-        WHERE origen = %s AND destino = %s
-    """, (origen, destino))
-    mysql.connection.commit()
-    cursor.close()
+        SELECT e.*, c.nombre, c.apellido_paterno, v.placa, r.origen, r.destino
+        FROM Entregas e
+        JOIN Asignaciones_Rutas ar ON e.id_asignacion = ar.id_asignacion
+        JOIN Conductores c ON ar.id_conductor = c.id_conductor
+        JOIN Vehiculos v ON ar.id_vehiculo = v.id_vehiculo
+        JOIN Rutas r ON ar.id_ruta = r.id_ruta
+        WHERE e.estado_entrega = 'pendiente'
+        ORDER BY e.fecha_entrega DESC
+    """)
+    entregas_pendientes = cursor.fetchall()
 
-    return redirect(url_for('seguimiento_entregas'))
+    # Pedidos entregados
+    cursor.execute("""
+        SELECT e.*, c.nombre, c.apellido_paterno, v.placa, r.origen, r.destino
+        FROM Entregas e
+        JOIN Asignaciones_Rutas ar ON e.id_asignacion = ar.id_asignacion
+        JOIN Conductores c ON ar.id_conductor = c.id_conductor
+        JOIN Vehiculos v ON ar.id_vehiculo = v.id_vehiculo
+        JOIN Rutas r ON ar.id_ruta = r.id_ruta
+        WHERE e.estado_entrega = 'entregado'
+        ORDER BY e.fecha_entrega DESC
+    """)
+    entregas_entregadas = cursor.fetchall()
+
+    # Pedidos asignados
+    cursor.execute("""
+        SELECT e.*, c.nombre, c.apellido_paterno, v.placa, r.origen, r.destino
+        FROM Entregas e
+        JOIN Asignaciones_Rutas ar ON e.id_asignacion = ar.id_asignacion
+        JOIN Conductores c ON ar.id_conductor = c.id_conductor
+        JOIN Vehiculos v ON ar.id_vehiculo = v.id_vehiculo
+        JOIN Rutas r ON ar.id_ruta = r.id_ruta
+        WHERE e.estado_entrega = 'Asignada'
+        ORDER BY e.fecha_entrega DESC
+    """)
+    entregas_asignadas = cursor.fetchall()
+
+    # Pedidos con incidentes reportados
+    cursor.execute("""
+        SELECT e.*, c.nombre, c.apellido_paterno, v.placa, r.origen, r.destino
+        FROM Entregas e
+        JOIN Asignaciones_Rutas ar ON e.id_asignacion = ar.id_asignacion
+        JOIN Conductores c ON ar.id_conductor = c.id_conductor
+        JOIN Vehiculos v ON ar.id_vehiculo = v.id_vehiculo
+        JOIN Rutas r ON ar.id_ruta = r.id_ruta
+        WHERE e.estado_entrega = 'Incidente Reportado'
+        ORDER BY e.fecha_entrega DESC
+    """)
+    entregas_incidentes = cursor.fetchall()
+
+    cursor.close()
+    connection.close()
+
+    return render_template('reporte_vehiculos.html',
+                           entregas_pendientes=entregas_pendientes,
+                           entregas_entregadas=entregas_entregadas,
+                           entregas_asignadas=entregas_asignadas,
+                           entregas_incidentes=entregas_incidentes)
+
+@app.route('/logout')
+def logout():
+    session.clear()  # Limpiar sesión
+    return redirect(url_for('login'))
+
 
 
 if __name__ == '__main__':

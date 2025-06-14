@@ -81,11 +81,6 @@
                                     <td>
                                         <button class="btn btn-primary btn-sm seguimiento-btn" data-id="{{ entrega.id_conductor }}" onclick="verSeguimiento({{ entrega.id_conductor }})">
                                             <i class="fas fa-map-marker-alt"></i> Ver Seguimiento
-                                        </button>
-                                        <a href="https://www.google.com/maps/dir/?api=1&origin={{ entrega.latitud_origen }},{{ entrega.longitud_origen }}&destination={{ entrega.latitud_destino }},{{ entrega.longitud_destino }}&travelmode=driving"
-                                           class="btn btn-success btn-sm mt-1" target="_blank">
-                                            <i class="fas fa-route"></i> Ir a Mapas
-                                        </a>
                                     </td>
                                 </tr>
                                 {% endfor %}
