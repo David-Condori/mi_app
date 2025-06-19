@@ -5,10 +5,9 @@ from geopy.geocoders import Nominatim
 import heapq
 import traceback
 
-
-
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'  # Necesario para gestionar sesiones
+
 
 host = 'Davidcondori.mysql.pythonanywhere-services.com'
 user = 'Davidcondori'
@@ -1505,6 +1504,7 @@ def pedido():
     # Si es método GET o hubo error, mostrar el formulario
     return render_template('pedido.html')
 
+
 @app.route('/ver_pedidos')
 def ver_pedidos():
     conn = get_db_connection()
@@ -1583,6 +1583,76 @@ def reporte_vehiculos():
                            entregas_entregadas=entregas_entregadas,
                            entregas_asignadas=entregas_asignadas,
                            entregas_incidentes=entregas_incidentes)
+
+
+@app.route('/ver_mis_pedidos', methods=['GET', 'POST'])
+def ver_mis_pedidos():
+    try:
+        if request.method == 'POST':
+            telefono = request.form['telefono']
+            conn = get_db_connection()
+            cursor = conn.cursor(dictionary=True)
+
+            cursor.execute("SELECT * FROM Pedidos WHERE cliente_telefono = %s", (telefono,))
+            pedidos_raw = cursor.fetchall()
+
+            pedidos = []
+            for p in pedidos_raw:
+                pedido = {
+                    'cliente_nombre': p['cliente_nombre'],
+                    'cliente_telefono': p['cliente_telefono'],
+                    'nombre_lugar': p['nombre_lugar'],
+                    'producto': p['producto'],
+                    'cantidad': p['cantidad'],
+                    'metodo_pago': p['metodo_pago'],
+                    'estado': p['estado'],
+                    'fecha_pedido': p['fecha_pedido'],
+                    'estado_pago': p['estado_pago'],
+                    'fecha_entrega': p['fecha_entrega'],
+                    'comentarios': p['comentarios'],
+                    'conductor': None,
+                    'vehiculo': None,
+                    'comprobante_pago': p['comprobante_pago']
+                }
+
+                if p['estado'] == 'Asignado':
+                    cursor.execute("""
+                        SELECT c.nombre, c.apellido_paterno, c.telefono,
+                               v.placa, v.tipo_vehiculo
+                        FROM Entregas e
+                        JOIN Asignaciones_Rutas a ON e.id_asignacion = a.id_asignacion
+                        JOIN Conductores c ON a.id_conductor = c.id_conductor
+                        JOIN Vehiculos v ON a.id_vehiculo = v.id_vehiculo
+                        WHERE e.id_pedido = %s
+                        ORDER BY e.id_entrega DESC LIMIT 1
+                    """, (p['id'],))
+                    asignacion = cursor.fetchone()
+                    if asignacion:
+                        pedido['conductor'] = {
+                            'nombre': asignacion['nombre'],
+                            'apellido': asignacion['apellido_paterno'],
+                            'telefono': asignacion['telefono']
+                        }
+                        pedido['vehiculo'] = {
+                            'placa': asignacion['placa'],
+                            'tipo_vehiculo': asignacion['tipo_vehiculo']
+                        }
+
+                pedidos.append(pedido)
+
+            cursor.close()
+            conn.close()
+
+            return render_template('ver_mis_pedidos.html', pedidos=pedidos)
+
+        return render_template('ver_mis_pedidos.html')
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return f"Ocurrió un error: {str(e)}", 500
+
+
 
 @app.route('/logout')
 def logout():

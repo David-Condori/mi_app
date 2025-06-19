@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ver mis pedidos - COBOCE</title>
+  <style>
+    body {
+      background-color: #0d3b23;
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 500px;
+      margin: 80px auto;
+      background: #1b5e20;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.6);
+      border: 2px solid #66bb6a;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #c8e6c9;
+      margin-bottom: 25px;
+    }
+    .mensaje {
+      text-align: center;
+      background-color: #2e7d32;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 25px;
+      font-size: 1rem;
+    }
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 20px;
+      margin-bottom: 8px;
+    }
+    input[type="tel"] {
+      width: 100%;
+      padding: 12px;
+      font-size: 1rem;
+      border: 2px solid #81c784;
+      border-radius: 8px;
+      background-color: #e8f5e9;
+      color: #000;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 25px;
+      background: linear-gradient(45deg, #4caf50, #66bb6a);
+      border: none;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #000;
+      cursor: pointer;
+      box-shadow: 0 4px 8px #1b5e20;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background: linear-gradient(45deg, #81c784, #a5d6a7);
+    }
+    .resultado {
+      max-width: 700px;
+      margin: 40px auto;
+      background: #2e7d32;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.4);
+      border: 2px solid #81c784;
+    }
+    .pedido {
+      background-color: #388e3c;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 25px;
+      border: 2px solid #a5d6a7;
+    }
+    .pedido p {
+      margin: 6px 0;
+      font-size: 1rem;
+    }
+    .pedido a {
+      display: inline-block;
+      margin-top: 10px;
+      background-color: #25d366;
+      color: white;
+      padding: 10px 16px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: bold;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    }
+    .pedido a:hover {
+      background-color: #1ebe57;
+    }
+  </style>
+</head>
+<body>
+
+{% if pedidos %}
+  <div class="resultado">
+    <h2>📦 Tus Pedidos</h2>
+    {% for pedido in pedidos %}
+      <div class="pedido">
+        <p><strong>Cliente:</strong> {{ pedido.cliente_nombre }} - 📱 {{ pedido.cliente_telefono }}</p>
+        <p><strong>Ubicación:</strong> {{ pedido.nombre_lugar }}</p>
+        <p><strong>Producto:</strong> {{ pedido.producto }} - {{ pedido.cantidad }} bolsas</p>
+        <p><strong>Método de pago:</strong> {{ pedido.metodo_pago }}</p>
+        <p><strong>Estado del pedido:</strong> {{ pedido.estado }}</p>
+        <p><strong>Estado del pago:</strong> {{ pedido.estado_pago }}</p>
+        <p><strong>Fecha del pedido:</strong> {{ pedido.fecha_pedido.strftime('%d/%m/%Y %H:%M') if pedido.fecha_pedido else 'N/A' }}</p>
+        <p><strong>Fecha de entrega:</strong> {{ pedido.fecha_entrega.strftime('%d/%m/%Y') if pedido.fecha_entrega else 'Pendiente' }}</p>
+        <p><strong>Comentarios:</strong> {{ pedido.comentarios or 'Ninguno' }}</p>
+
+        {% if pedido.comprobante_pago %}
+          <p><a href="{{ url_for('static', filename='comprobantes/' ~ pedido.comprobante_pago) }}" target="_blank">📄 Ver Comprobante de Pago</a></p>
+        {% endif %}
+
+        {% if pedido.estado == 'Asignado' and pedido.conductor %}
+          <hr>
+          <p><strong>Conductor asignado:</strong> {{ pedido.conductor.nombre }} {{ pedido.conductor.apellido }}</p>
+          <p><strong>Teléfono del conductor:</strong> {{ pedido.conductor.telefono }}</p>
+
+          {% if pedido.vehiculo %}
+            <p><strong>Vehículo asignado:</strong> Placa {{ pedido.vehiculo.placa }}, Tipo {{ pedido.vehiculo.tipo_vehiculo }}</p>
+          {% endif %}
+
+          <a href="https://wa.me/591{{ pedido.conductor.telefono }}" target="_blank">📲 Contactar por WhatsApp</a>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <!-- Formulario para ingresar teléfono -->
+  <div class="container">
+    <h1>📄 Ver mis pedidos</h1>
+    <div class="mensaje">
+      Ingresa tu número de celular con el cual hiciste el pedido para poder ver tus pedidos realizados.
+    </div>
+    <form method="POST" action="{{ url_for('ver_mis_pedidos') }}">
+      <label for="telefono">📱 Número de celular:</label>
+      <input type="tel" id="telefono" name="telefono" required placeholder="Ej. 76412345" />
+      <button type="submit">🔍 Consultar mis pedidos</button>
+    </form>
+  </div>
+{% endif %}
+
+</body>
+</html>
