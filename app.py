@@ -439,7 +439,7 @@ def panel_supervisor():
 @app.route('/panel_conductor')
 def panel_conductor():
     if 'rol' not in session or session['rol'] != 'conductor':
-        return redirect(url_for('panel_conductor', mensaje='reporte_enviado'))
+        return redirect(url_for('login'))  # Mejor redirigir a login si no está autorizado
 
     try:
         connection = get_db_connection()
@@ -447,7 +447,7 @@ def panel_conductor():
 
         conductor_id = session['conductor_id']
 
-        # Obtener entregas asignadas al conductor
+        # Obtener entregas asignadas al conductor que NO estén entregadas
         cursor.execute("""
             SELECT e.id_entrega, e.fecha_entrega, e.estado_entrega,
                    c.id_conductor,
@@ -455,29 +455,32 @@ def panel_conductor():
                    v.placa,
                    r.origen, r.destino,
                    r.latitud_origen, r.longitud_origen,
-                   r.latitud_destino, r.longitud_destino
+                   r.latitud_destino, r.longitud_destino,
+                   p.cliente_nombre, p.cliente_telefono, p.producto, p.cantidad
             FROM Entregas e
             JOIN Asignaciones_Rutas a ON e.id_asignacion = a.id_asignacion
             JOIN Conductores c ON a.id_conductor = c.id_conductor
             JOIN Vehiculos v ON a.id_vehiculo = v.id_vehiculo
             JOIN Rutas r ON a.id_ruta = r.id_ruta
+            JOIN Pedidos p ON e.id_pedido = p.id
             WHERE a.id_conductor = %s
+              AND LOWER(e.estado_entrega) != 'entregado'
             ORDER BY e.fecha_entrega DESC
         """, (conductor_id,))
         entregas = cursor.fetchall()
 
-        # Rutas para el mapa -> SOLO las rutas con entrega activa
+        # Rutas para el mapa - solo rutas con entregas no entregadas
         cursor.execute("""
             SELECT DISTINCT r.*
             FROM Asignaciones_Rutas a
             JOIN Rutas r ON a.id_ruta = r.id_ruta
             JOIN Entregas e ON a.id_asignacion = e.id_asignacion
             WHERE a.id_conductor = %s
-            AND e.estado_entrega != 'completado'
+              AND LOWER(e.estado_entrega) != 'entregado'
         """, (conductor_id,))
         rutas = cursor.fetchall()
 
-        # Obtener respuestas del supervisor
+        # Obtener respuestas del supervisor para este conductor
         cursor.execute("""
              SELECT ns.mensaje_respuesta AS mensaje_respuesta, ns.fecha_respuesta
              FROM RespuestasSupervisor ns
@@ -496,7 +499,6 @@ def panel_conductor():
     finally:
         cursor.close()
         connection.close()
-
 
 @app.route('/reportar_incidente/<int:id_entrega>', methods=['POST'])
 def reportar_incidente(id_entrega):
@@ -1485,104 +1487,201 @@ def pedido():
             cursor.execute("""
                 INSERT INTO Pedidos (
                     cliente_nombre, cliente_telefono, nombre_lugar,
-                    latitud, longitud, producto, cantidad, metodo_pago
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """, (cliente_nombre, cliente_telefono, nombre_lugar,
-                  latitud, longitud, producto, cantidad, metodo_pago))
+                    latitud, longitud, producto, cantidad, metodo_pago,
+                    estado, estado_pago
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                cliente_nombre, cliente_telefono, nombre_lugar,
+                latitud, longitud, producto, cantidad, metodo_pago,
+                'Por revisar',  # estado
+                'Pendiente'     # estado_pago
+            ))
 
             conn.commit()
             cursor.close()
             conn.close()
 
             flash('✅ ¡Pedido enviado correctamente!')
-            return redirect(url_for('pedido'))  # Redirige después del POST exitoso
+            return redirect(url_for('pedido'))
 
         except Exception as e:
             traceback.print_exc()
             flash('❌ Ocurrió un error al enviar el pedido.')
 
-    # Si es método GET o hubo error, mostrar el formulario
     return render_template('pedido.html')
-
 
 @app.route('/ver_pedidos')
 def ver_pedidos():
+    if 'rol' not in session or session['rol'] != 'administrador':
+        return redirect(url_for('login'))
+
+    estado_filtro = request.args.get('estado', 'Todos')
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    cursor.execute("SELECT * FROM Pedidos ORDER BY fecha_pedido DESC")
-    pedidos = cursor.fetchall()
+    if estado_filtro == 'Todos':
+        cursor.execute("SELECT * FROM Pedidos ORDER BY fecha_pedido DESC")
+    else:
+        cursor.execute("SELECT * FROM Pedidos WHERE estado = %s ORDER BY fecha_pedido DESC", (estado_filtro,))
+
+    pedidos_raw = cursor.fetchall()
+
+    pedidos = []
+    for p in pedidos_raw:
+        pedido = {
+            'id': p['id'],
+            'cliente_nombre': p['cliente_nombre'],
+            'cliente_telefono': p['cliente_telefono'],
+            'nombre_lugar': p['nombre_lugar'],
+            'producto': p['producto'],
+            'cantidad': p['cantidad'],
+            'metodo_pago': p['metodo_pago'],
+            'fecha_pedido': p['fecha_pedido'],
+            'estado': p['estado'],
+            'estado_pago': p.get('estado_pago', 'Pendiente'),
+            'fecha_entrega': p.get('fecha_entrega'),
+            'comentarios': p.get('comentarios', ''),
+            'conductor': None,
+            'vehiculo': None,
+        }
+
+        # Si está asignado o en rutas relacionadas, obtener conductor y vehículo
+        if pedido['estado'] in ['Asignado', 'En ruta', 'Entregado']:
+            cursor.execute("""
+                SELECT c.nombre, c.apellido_paterno, c.telefono, v.placa, v.tipo_vehiculo
+                FROM Entregas e
+                JOIN Asignaciones_Rutas a ON e.id_asignacion = a.id_asignacion
+                JOIN Conductores c ON a.id_conductor = c.id_conductor
+                JOIN Vehiculos v ON a.id_vehiculo = v.id_vehiculo
+                WHERE e.id_pedido = %s
+            """, (pedido['id'],))
+            info = cursor.fetchone()
+            if info:
+                pedido['conductor'] = {
+                    'nombre': info['nombre'],
+                    'apellido': info['apellido_paterno'],
+                    'telefono': info['telefono']
+                }
+                pedido['vehiculo'] = {
+                    'placa': info['placa'],
+                    'tipo': info['tipo_vehiculo']
+                }
+
+        pedidos.append(pedido)
 
     cursor.close()
     conn.close()
 
-    return render_template('ver_pedidos.html', pedidos=pedidos)
+    estados_disponibles = ['Todos', 'Por revisar', 'Pendiente', 'Asignado', 'En ruta', 'Entregado', 'Cancelado']
+
+    return render_template('ver_pedidos.html', pedidos=pedidos, estado_filtro=estado_filtro, estados_disponibles=estados_disponibles)
+
+
+@app.route('/aprobar_pago/<int:pedido_id>', methods=['POST'])
+def aprobar_pago(pedido_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE Pedidos
+        SET estado = 'Pendiente', estado_pago = 'Aprobado'
+        WHERE id = %s
+    """, (pedido_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    flash("✅ Pedido aprobado con éxito.", "success")
+    return redirect(url_for('ver_pedidos'))
+@app.route('/eliminar_pedido/<int:pedido_id>', methods=['POST'])
+def eliminar_pedido(pedido_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM Pedidos WHERE id = %s", (pedido_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    flash("🗑 Pedido eliminado correctamente.", "info")
+    return redirect(url_for('ver_pedidos'))
+
 
 @app.route('/reporte_vehiculos')
 def reporte_vehiculos():
     connection = get_db_connection()
     cursor = connection.cursor(dictionary=True)
 
-    # Pedidos con estado pendiente
-    cursor.execute("""
-        SELECT e.*, c.nombre, c.apellido_paterno, v.placa, r.origen, r.destino
-        FROM Entregas e
-        JOIN Asignaciones_Rutas ar ON e.id_asignacion = ar.id_asignacion
-        JOIN Conductores c ON ar.id_conductor = c.id_conductor
-        JOIN Vehiculos v ON ar.id_vehiculo = v.id_vehiculo
-        JOIN Rutas r ON ar.id_ruta = r.id_ruta
-        WHERE e.estado_entrega = 'pendiente'
-        ORDER BY e.fecha_entrega DESC
-    """)
-    entregas_pendientes = cursor.fetchall()
+    # 1. Total vehículos
+    cursor.execute("SELECT COUNT(*) AS total FROM Vehiculos")
+    total_vehiculos = cursor.fetchone()['total']
 
-    # Pedidos entregados
+    # 2. Vehículos con entregas pendientes o asignadas (activos)
     cursor.execute("""
-        SELECT e.*, c.nombre, c.apellido_paterno, v.placa, r.origen, r.destino
-        FROM Entregas e
-        JOIN Asignaciones_Rutas ar ON e.id_asignacion = ar.id_asignacion
-        JOIN Conductores c ON ar.id_conductor = c.id_conductor
-        JOIN Vehiculos v ON ar.id_vehiculo = v.id_vehiculo
-        JOIN Rutas r ON ar.id_ruta = r.id_ruta
-        WHERE e.estado_entrega = 'entregado'
-        ORDER BY e.fecha_entrega DESC
+        SELECT COUNT(DISTINCT v.id_vehiculo) AS activos
+        FROM Vehiculos v
+        JOIN Asignaciones_Rutas a ON v.id_vehiculo = a.id_vehiculo
+        JOIN Entregas e ON a.id_asignacion = e.id_asignacion
+        WHERE LOWER(e.estado_entrega) IN ('pendiente', 'asignada')
     """)
-    entregas_entregadas = cursor.fetchall()
+    vehiculos_activos = cursor.fetchone()['activos']
 
-    # Pedidos asignados
+    # 3. Vehículos con entregas asignadas (Asignado sin importar estado)
     cursor.execute("""
-        SELECT e.*, c.nombre, c.apellido_paterno, v.placa, r.origen, r.destino
-        FROM Entregas e
-        JOIN Asignaciones_Rutas ar ON e.id_asignacion = ar.id_asignacion
-        JOIN Conductores c ON ar.id_conductor = c.id_conductor
-        JOIN Vehiculos v ON ar.id_vehiculo = v.id_vehiculo
-        JOIN Rutas r ON ar.id_ruta = r.id_ruta
-        WHERE e.estado_entrega = 'Asignada'
-        ORDER BY e.fecha_entrega DESC
+        SELECT COUNT(DISTINCT v.id_vehiculo) AS asignados
+        FROM Vehiculos v
+        JOIN Asignaciones_Rutas a ON v.id_vehiculo = a.id_vehiculo
     """)
-    entregas_asignadas = cursor.fetchall()
+    vehiculos_asignados = cursor.fetchone()['asignados']
 
-    # Pedidos con incidentes reportados
+    # 4. Vehículos sin entregas (nunca fueron asignados)
     cursor.execute("""
-        SELECT e.*, c.nombre, c.apellido_paterno, v.placa, r.origen, r.destino
-        FROM Entregas e
-        JOIN Asignaciones_Rutas ar ON e.id_asignacion = ar.id_asignacion
-        JOIN Conductores c ON ar.id_conductor = c.id_conductor
-        JOIN Vehiculos v ON ar.id_vehiculo = v.id_vehiculo
-        JOIN Rutas r ON ar.id_ruta = r.id_ruta
-        WHERE e.estado_entrega = 'Incidente Reportado'
-        ORDER BY e.fecha_entrega DESC
+        SELECT COUNT(*) AS sin_entrega
+        FROM Vehiculos
+        WHERE id_vehiculo NOT IN (
+            SELECT DISTINCT id_vehiculo FROM Asignaciones_Rutas
+        )
     """)
-    entregas_incidentes = cursor.fetchall()
+    vehiculos_sin_entrega = cursor.fetchone()['sin_entrega']
+
+    # 5. Lista detallada de vehículos con conductor si tiene
+    cursor.execute("""
+        SELECT v.id_vehiculo, v.placa, v.modelo, v.tipo_vehiculo, v.estado,
+               c.nombre AS nombre_conductor, c.apellido_paterno AS apellido_conductor,
+               (
+                   SELECT COUNT(*) FROM Asignaciones_Rutas ar
+                   JOIN Entregas e ON ar.id_asignacion = e.id_asignacion
+                   WHERE ar.id_vehiculo = v.id_vehiculo AND LOWER(e.estado_entrega) IN ('pendiente', 'asignada')
+               ) AS es_activo,
+               (
+                   SELECT COUNT(*) FROM Asignaciones_Rutas ar
+                   WHERE ar.id_vehiculo = v.id_vehiculo
+               ) AS tiene_asignacion
+        FROM Vehiculos v
+        LEFT JOIN Asignaciones_Rutas a ON v.id_vehiculo = a.id_vehiculo
+        LEFT JOIN Conductores c ON a.id_conductor = c.id_conductor
+        GROUP BY v.id_vehiculo
+        ORDER BY v.placa ASC
+    """)
+    lista = cursor.fetchall()
+
+    # Clasificar vehículos para filtro en frontend
+    for v in lista:
+        if v['es_activo'] > 0:
+            v['clasificacion'] = 'activo'
+        elif v['tiene_asignacion'] > 0:
+            v['clasificacion'] = 'asignado'
+        else:
+            v['clasificacion'] = 'sin-entrega'
 
     cursor.close()
     connection.close()
 
-    return render_template('reporte_vehiculos.html',
-                           entregas_pendientes=entregas_pendientes,
-                           entregas_entregadas=entregas_entregadas,
-                           entregas_asignadas=entregas_asignadas,
-                           entregas_incidentes=entregas_incidentes)
+    return render_template(
+        'reporte_vehiculos.html',
+        total_vehiculos=total_vehiculos,
+        vehiculos_activos=vehiculos_activos,
+        vehiculos_asignados=vehiculos_asignados,
+        vehiculos_sin_entrega=vehiculos_sin_entrega,
+        lista_vehiculos=lista
+    )
 
 
 @app.route('/ver_mis_pedidos', methods=['GET', 'POST'])

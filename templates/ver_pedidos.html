@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>Pedidos Realizados - COBOCE</title>
     <style>
         :root {
@@ -10,33 +10,48 @@
             --verde-hover: #00593b;
             --blanco: #ffffff;
             --gris-claro: #f0f0f0;
-            --gris-texto: #cccccc;
+            --gris-texto: #444;
         }
-
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--verde-oscuro);
             color: var(--blanco);
-            margin: 0;
-            padding: 0;
+            margin: 0; padding: 0;
         }
-
         header {
             background-color: var(--verde-claro);
             padding: 20px;
             text-align: center;
         }
-
         header h1 {
             margin: 0;
             font-size: 28px;
             color: var(--blanco);
         }
-
         .container {
             padding: 30px;
+            max-width: 1200px;
+            margin: auto;
         }
-
+        .filtros {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .btn-filtro {
+            background-color: var(--verde-claro);
+            color: var(--blanco);
+            border: none;
+            padding: 10px 18px;
+            margin: 0 5px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 6px;
+            transition: background-color 0.3s ease;
+            text-decoration: none;
+        }
+        .btn-filtro:hover, .btn-filtro.active {
+            background-color: var(--verde-hover);
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -44,66 +59,75 @@
             color: #000;
             border-radius: 8px;
             overflow: hidden;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
         }
-
         th, td {
-            padding: 14px;
+            padding: 12px;
             text-align: center;
             border-bottom: 1px solid #ccc;
         }
-
         th {
             background-color: var(--verde-claro);
-            color: white;
+            color: var(--blanco);
         }
-
         tr:hover {
-            background-color: #e2f0e9;
+            background-color: #d4e9d7;
         }
-
+        .detalle {
+            text-align: left;
+            font-size: 0.9rem;
+            color: var(--gris-texto);
+        }
         .btn-volver {
             margin-top: 25px;
             display: inline-block;
             background-color: var(--verde-claro);
-            color: white;
+            color: var(--blanco);
             padding: 12px 24px;
             text-decoration: none;
             border-radius: 6px;
             transition: background-color 0.3s ease;
         }
-
         .btn-volver:hover {
             background-color: var(--verde-hover);
         }
-
-        .center {
-            text-align: center;
-        }
-
-        /* Nuevo botón asignar */
-        .btn-asignar {
-            background-color: var(--verde-claro);
-            color: white;
-            padding: 8px 14px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
+        .btn-aprobar, .btn-eliminar {
+            padding: 6px 12px;
+            margin-top: 5px;
+            font-size: 0.85rem;
             font-weight: bold;
-            font-size: 0.9rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
         }
-
-        .btn-asignar:hover {
-            background-color: var(--verde-hover);
+        .btn-aprobar {
+            background-color: #4caf50;
+            color: white;
+        }
+        .btn-aprobar:hover {
+            background-color: #43a047;
+        }
+        .btn-eliminar {
+            background-color: #e53935;
+            color: white;
+        }
+        .btn-eliminar:hover {
+            background-color: #c62828;
         }
     </style>
 </head>
 <body>
     <header>
-        <h1>📦 Pedidos Realizados</h1>
+        <h1>📦 Pedidos Realizados - Panel Administrador</h1>
     </header>
 
     <div class="container">
+        <div class="filtros">
+            {% for estado in estados_disponibles %}
+                <a href="{{ url_for('ver_pedidos', estado=estado) }}" class="btn-filtro {% if estado == estado_filtro %}active{% endif %}">{{ estado }}</a>
+            {% endfor %}
+        </div>
+
         {% if pedidos %}
         <table>
             <thead>
@@ -114,10 +138,20 @@
                     <th>Producto</th>
                     <th>Cantidad</th>
                     <th>Método de Pago</th>
-                    <th>Fecha</th>
-                    <th>Estado</th>
-                    {% if session['rol'] == 'supervisor' %}
-                    <th>Acción</th>
+                    <th>Fecha Pedido</th>
+                    <th>Estado Pedido</th>
+                    <th>Estado Pago</th>
+                    <th>Fecha Entrega</th>
+
+                    {# Mostrar columnas de Conductor y Vehículo solo en estados con info relevante #}
+                    {% if estado_filtro in ['Asignado', 'En ruta', 'Entregado'] %}
+                    <th>Conductor</th>
+                    <th>Vehículo</th>
+                    {% endif %}
+
+                    {# Mostrar columna Acciones solo en "Por revisar" #}
+                    {% if estado_filtro == 'Por revisar' %}
+                    <th>Acciones</th>
                     {% endif %}
                 </tr>
             </thead>
@@ -130,18 +164,38 @@
                     <td>{{ pedido.producto }}</td>
                     <td>{{ pedido.cantidad }}</td>
                     <td>{{ pedido.metodo_pago }}</td>
-                    <td>{{ pedido.fecha_pedido.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>{{ pedido.fecha_pedido.strftime('%Y-%m-%d %H:%M') if pedido.fecha_pedido else '' }}</td>
                     <td>{{ pedido.estado }}</td>
-                    {% if session['rol'] == 'supervisor' %}
+                    <td>{{ pedido.estado_pago }}</td>
+                    <td>{{ pedido.fecha_entrega.strftime('%Y-%m-%d') if pedido.fecha_entrega else 'Pendiente' }}</td>
+
+                    {% if estado_filtro in ['Asignado', 'En ruta', 'Entregado'] %}
                     <td>
-                        {% if pedido.estado|lower == 'pendiente' %}
-                        <form action="{{ url_for('asignar_entrega') }}" method="get" style="margin:0;">
-                            <input type="hidden" name="pedido_id" value="{{ pedido.id_pedido }}">
-                            <button type="submit" class="btn-asignar">Asignar</button>
-                        </form>
+                        {% if pedido.conductor %}
+                            {{ pedido.conductor.nombre }} {{ pedido.conductor.apellido }}<br>
+                            📞 {{ pedido.conductor.telefono }}
                         {% else %}
-                        <button class="btn-asignar" disabled>Asignado</button>
+                            --
                         {% endif %}
+                    </td>
+                    <td>
+                        {% if pedido.vehiculo %}
+                            Placa: {{ pedido.vehiculo.placa }}<br>
+                            Tipo: {{ pedido.vehiculo.tipo }}
+                        {% else %}
+                            --
+                        {% endif %}
+                    </td>
+                    {% endif %}
+
+                    {% if estado_filtro == 'Por revisar' %}
+                    <td>
+                        <form method="POST" action="{{ url_for('aprobar_pago', pedido_id=pedido.id) }}">
+                            <button type="submit" class="btn-aprobar">✅ Aprobar</button>
+                        </form>
+                        <form method="POST" action="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" onsubmit="return confirm('¿Eliminar este pedido?');">
+                            <button type="submit" class="btn-eliminar">🗑 Eliminar</button>
+                        </form>
                     </td>
                     {% endif %}
                 </tr>
@@ -149,13 +203,12 @@
             </tbody>
         </table>
         {% else %}
-        <p class="center">No hay pedidos registrados aún.</p>
+            <p>No hay pedidos para mostrar en esta categoría.</p>
         {% endif %}
 
-        <div class="center">
+        <div style="text-align:center;">
             <a href="{{ url_for('dashboard') }}" class="btn-volver">🔙 Volver al Panel</a>
         </div>
     </div>
 </body>
 </html>
-

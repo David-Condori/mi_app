@@ -76,24 +76,28 @@
         <h2>Entregas Asignadas</h2>
 
         {% if mensaje == 'reporte_enviado' %}
-            <div id="mensaje-exito" style="background-color: #dff0d8; color: #3c763d; padding: 10px; border-radius: 5px; margin-bottom: 15px; text-align: center; font-weight: bold;">
-                ✅ ¡Reporte enviado con éxito!
-            </div>
-            <script>
-                setTimeout(() => {
-                    const msg = document.getElementById('mensaje-exito');
-                    if (msg) {
-                        msg.style.display = 'none';
-                    }
-                }, 4000);
-            </script>
+        <div id="mensaje-exito" style="background-color: #dff0d8; color: #3c763d; padding: 10px; border-radius: 5px; margin-bottom: 15px; text-align: center; font-weight: bold;">
+            ✅ ¡Reporte enviado con éxito!
+        </div>
+        <script>
+            setTimeout(() => {
+                const msg = document.getElementById('mensaje-exito');
+                if (msg) {
+                    msg.style.display = 'none';
+                }
+            }, 4000);
+        </script>
         {% endif %}
 
         {% if entregas %}
             {% for entrega in entregas %}
+                {% if entrega.estado_entrega != 'Entregado' %}
                 <div class="entrega">
                     <p><strong>Conductor:</strong> {{ entrega.nombre_conductor }}</p>
                     <p><strong>Placa del Vehículo:</strong> {{ entrega.placa }}</p>
+                    <p><strong>Cliente:</strong> {{ entrega.cliente_nombre }} 📞 {{ entrega.cliente_telefono }}</p>
+                    <p><strong>Producto:</strong> {{ entrega.producto }}</p>
+                    <p><strong>Cantidad:</strong> {{ entrega.cantidad }} bolsas</p>
                     <p><strong>Origen:</strong> {{ entrega.origen }}</p>
                     <p><strong>Destino:</strong> {{ entrega.destino }}</p>
                     <p><strong>Fecha de Entrega:</strong> {{ entrega.fecha_entrega }}</p>
@@ -125,14 +129,13 @@
                         </button>
                     </a>
                 </div>
+                {% endif %}
             {% endfor %}
         {% else %}
             <p class="no-entregas" style="color:white;">No tienes entregas asignadas para hoy.</p>
         {% endif %}
 
-        <!-- SECCIÓN NUEVA: Respuestas del Supervisor -->
         <h2>📬 Respuestas del Supervisor</h2>
-
         {% if respuestas %}
         <table style="width:100%; border-collapse: collapse; margin-top: 10px;">
             <thead>
@@ -151,22 +154,21 @@
             </tbody>
         </table>
         {% else %}
-            <p class="no-entregas" style="color:white; text-align:center; background-color:#ffcccb; padding:10px; border-radius:6px;">⚠️ No tienes respuestas del supervisor aún.</p>
+        <p class="no-entregas" style="color:white; text-align:center; background-color:#ffcccb; padding:10px; border-radius:6px;">⚠️ No tienes respuestas del supervisor aún.</p>
         {% endif %}
     </div>
 
     <h2>Ruta Asignada</h2>
     <h3>Rutas recibidas:</h3>
     <ul>
-      {% for ruta in rutas %}
+    {% for ruta in rutas %}
         <li>Origen: {{ ruta.origen }} ({{ ruta.latitud_origen }}, {{ ruta.longitud_origen }}), Destino: {{ ruta.destino }} ({{ ruta.latitud_destino }}, {{ ruta.longitud_destino }})</li>
-      {% endfor %}
+    {% endfor %}
     </ul>
     <div id="map"></div>
 
     <script>
         const map = L.map('map').setView([-17.3935, -66.1570], 7);
-
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
@@ -187,7 +189,6 @@
         rutas.forEach(ruta => {
             const markerOrigen = L.marker(ruta.origen).bindPopup("Origen: " + ruta.origenTexto);
             const markerDestino = L.marker(ruta.destino).bindPopup("Destino: " + ruta.destinoTexto);
-
             grupoRutas.addLayer(markerOrigen);
             grupoRutas.addLayer(markerDestino);
 
@@ -201,20 +202,13 @@
                     destino: [ruta.destino[1], ruta.destino[0]]
                 })
             })
-            .then(response => {
-                if (!response.ok) throw new Error("API error");
-                return response.json();
-            })
+            .then(res => res.json())
             .then(data => {
-                const route = L.geoJSON(data, {
-                    style: { color: 'blue', weight: 4 }
-                });
+                const route = L.geoJSON(data, { style: { color: 'blue', weight: 4 } });
                 grupoRutas.addLayer(route);
                 map.fitBounds(grupoRutas.getBounds());
             })
-            .catch(error => {
-                console.error('Error al cargar la ruta:', error);
-            });
+            .catch(err => console.error('Error al cargar la ruta:', err));
         });
     </script>
 
@@ -245,60 +239,33 @@
                     markerConductor.setLatLng([lat, lng]);
                 }
 
-                // Enviar ubicación al servidor
                 fetch('/actualizar_ubicacion', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        latitud: lat,
-                        longitud: lng
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Ubicación enviada al servidor:', data);
-                })
-                .catch(error => {
-                    console.error('Error al enviar ubicación:', error);
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ latitud: lat, longitud: lng })
                 });
 
-                // Trazar línea en tiempo real a destino
                 if (latitudDestino !== null && longitudDestino !== null) {
                     fetch('/api/trazar_ruta', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             origen: [lng, lat],
                             destino: [longitudDestino, latitudDestino]
                         })
                     })
-                    .then(response => {
-                        if (!response.ok) throw new Error("API error");
-                        return response.json();
-                    })
+                    .then(res => res.json())
                     .then(data => {
-                        if (rutaEnTiempoReal) {
-                            map.removeLayer(rutaEnTiempoReal);
-                        }
-
+                        if (rutaEnTiempoReal) map.removeLayer(rutaEnTiempoReal);
                         rutaEnTiempoReal = L.geoJSON(data, {
                             style: { color: 'red', weight: 4, dashArray: '5, 5' }
                         }).addTo(map);
                     })
-                    .catch(error => {
-                        console.error('Error al trazar ruta tiempo real:', error);
-                    });
+                    .catch(err => console.error('Error al trazar ruta tiempo real:', err));
                 }
-
             }, error => {
                 console.error('Error al obtener la ubicación:', error);
-            }, {
-                enableHighAccuracy: true
-            });
+            }, { enableHighAccuracy: true });
         } else {
             alert('Tu navegador no soporta Geolocalización.');
         }
