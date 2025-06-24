@@ -1,280 +1,237 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Seguimiento de Entregas - COBOCE</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Seguimiento de Entregas - COBOCE</title>
 
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" />
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" />
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #006400;
-            color: black;
-        }
-
-        .navbar {
-            background-color: #004d00;
-            color: white;
-            padding: 15px;
-            text-align: center;
-        }
-
-        .container {
-            margin-top: 30px;
-            background-color: #a8d08d;
-            padding: 20px;
-            border-radius: 10px;
-        }
-
-        #map {
-            height: 500px;
-            width: 100%;
-        }
-
-        .card-header {
-            background-color: #007bff;
-            color: white;
-        }
-    </style>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #e9f5e9;
+      color: #222;
+    }
+    .navbar {
+      background-color: #004d00;
+      padding: 15px;
+      color: white;
+      text-align: center;
+    }
+    .navbar h1 {
+      margin: 0;
+    }
+    .container {
+      margin-top: 30px;
+      padding-bottom: 50px;
+    }
+    #map {
+      height: 500px;
+      width: 100%;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    }
+    .card-header {
+      background-color: #006400;
+      color: white;
+    }
+    .table th {
+      background-color: #a8d08d;
+    }
+    .btn-primary {
+      background-color: #007bff;
+      border: none;
+    }
+    .btn-primary:hover {
+      background-color: #0056b3;
+    }
+  </style>
 </head>
-
 <body>
-    <div class="navbar">
-        <h1>COBOCE - Seguimiento de Entregas</h1>
-    </div>
+  <div class="navbar">
+    <h1>COBOCE - Seguimiento de Entregas</h1>
+  </div>
 
-    <div class="container">
-        <div class="row">
-            <!-- Tabla de entregas asignadas -->
-            <div class="col-md-12 mb-3">
-                <div class="card">
-                    <div class="card-header">
-                        <h4>Entregas Asignadas</h4>
-                    </div>
-                    <div class="card-body">
-                        <table class="table table-striped table-bordered">
-                            <thead>
-                                <tr>
-                                    <th>Conductor</th>
-                                    <th>Vehículo</th>
-                                    <th>Ruta</th>
-                                    <th>Estado</th>
-                                    <th>Fecha</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for entrega in entregas %}
-                                <tr>
-                                    <td>{{ entrega.nombre_conductor }}</td>
-                                    <td>{{ entrega.placa }}</td>
-                                    <td>{{ entrega.origen }} → {{ entrega.destino }}</td>
-                                    <td>{{ entrega.estado_entrega }}</td>
-                                    <td>{{ entrega.fecha_entrega }}</td>
-                                    <td>
-                                        <button class="btn btn-primary btn-sm seguimiento-btn" data-id="{{ entrega.id_conductor }}" onclick="verSeguimiento({{ entrega.id_conductor }})">
-                                            <i class="fas fa-map-marker-alt"></i> Ver Seguimiento
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Mapa -->
-            <div class="col-md-12 mb-3">
-                <div class="card">
-                    <div class="card-header bg-success">
-                        <h4>Mapa de Seguimiento</h4>
-                    </div>
-                    <div class="card-body">
-                        <div id="map"></div>
-                        <!-- Aquí el texto de última actualización -->
-                        <p id="ultima-actualizacion" style="margin-top: 10px; font-size: 14px; color: black;"></p>
-                    </div>
-                </div>
-            </div>
+  <div class="container">
+    <div class="row">
+      <!-- Tabla -->
+      <div class="col-md-12 mb-4">
+        <div class="card">
+          <div class="card-header">
+            <h4>Entregas Asignadas Activas</h4>
+          </div>
+          <div class="card-body">
+            <table class="table table-bordered table-hover">
+              <thead>
+                <tr>
+                  <th>Conductor</th>
+                  <th>Vehículo</th>
+                  <th>Ruta</th>
+                  <th>Estado</th>
+                  <th>Fecha</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for entrega in entregas if entrega.estado_entrega in ['Asignada', 'pendiente', 'Incidente Reportado'] %}
+                <tr>
+                  <td>{{ entrega.nombre_conductor }}</td>
+                  <td>{{ entrega.placa }}</td>
+                  <td>{{ entrega.origen }} → {{ entrega.destino }}</td>
+                  <td>{{ entrega.estado_entrega }}</td>
+                  <td>{{ entrega.fecha_entrega }}</td>
+                  <td>
+                    <button class="btn btn-primary btn-sm seguimiento-btn" data-id="{{ entrega.id_conductor }}"
+                            onclick="verSeguimiento({{ entrega.id_conductor }})">
+                      <i class="fas fa-map-marker-alt"></i> Ver
+                    </button>
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="6" class="text-center text-danger fw-bold">No hay entregas activas</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
+      </div>
+
+      <!-- Mapa -->
+      <div class="col-md-12">
+        <div class="card">
+          <div class="card-header">
+            <h4>Mapa de Seguimiento</h4>
+          </div>
+          <div class="card-body">
+            <div id="map"></div>
+            <p id="ultima-actualizacion" class="mt-3 text-muted small text-end"></p>
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-    // Inicializa el mapa centrado en Bolivia
-    const map = L.map('map').setView([-17.3935, -66.1570], 7);
-
-    // Carga de los tiles de OpenStreetMap
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([-17.39, -66.15], 7);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
+      attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    // Icono personalizado para el conductor (camión)
     const iconoCamion = L.icon({
-        iconUrl: 'https://cdn-icons-png.flaticon.com/512/854/854878.png',
-        iconSize: [40, 40],
-        iconAnchor: [20, 40],
-        popupAnchor: [0, -40]
+      iconUrl: 'https://cdn-icons-png.flaticon.com/512/854/854878.png',
+      iconSize: [40, 40],
+      iconAnchor: [20, 40]
     });
 
-    // Variables globales
-    let markerConductor = null;
-    let markerOrigen = null;
-    let markerDestino = null;
-    let rutaPlanificada = null;
-    let rutaTiempoReal = null; // Línea roja dinámica
+    let markerConductor = null, markerOrigen = null, markerDestino = null;
+    let rutaPlanificada = null, rutaTiempoReal = null;
 
     function verSeguimiento(idConductor) {
-        // Marcar el botón actual como activo
-        document.querySelectorAll('.seguimiento-btn').forEach(btn => {
-            btn.disabled = false; // habilitar todos primero
-        });
+      document.querySelectorAll('.seguimiento-btn').forEach(btn => btn.disabled = false);
+      const botonActivo = document.querySelector(`.seguimiento-btn[data-id='${idConductor}']`);
+      if (botonActivo) botonActivo.disabled = true;
 
-        const activeBtn = document.querySelector(`.seguimiento-btn[data-id='${idConductor}']`);
-        if (activeBtn) {
-            activeBtn.disabled = true; // deshabilitar el que se está siguiendo
-        }
+      fetch(`/api/ubicacion_actual?id_conductor=${idConductor}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) return;
 
-        // Hacer fetch
-        fetch(`/api/ubicacion_actual?id_conductor=${idConductor}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.error) {
-                    console.warn('No se encontró ubicación para este conductor.');
-                    return;
-                }
+          const {
+            latitud, longitud, nombre_conductor,
+            latitud_origen, longitud_origen,
+            latitud_destino, longitud_destino,
+            origen, destino, timestamp
+          } = data;
 
-                const {
-                    latitud, longitud, nombre_conductor,
-                    latitud_origen, longitud_origen,
-                    latitud_destino, longitud_destino,
-                    origen, destino,
-                    timestamp
-                } = data;
+          if (!latitud || !longitud) return;
 
-                // Actualizar marcador de la ubicación actual (camión)
-                if (markerConductor) {
-                    markerConductor.setLatLng([latitud, longitud]);
-                    markerConductor.getPopup().setContent(`<strong>${nombre_conductor}</strong><br>Lat: ${latitud}<br>Lng: ${longitud}`);
-                } else {
-                    markerConductor = L.marker([latitud, longitud], { icon: iconoCamion })
-                        .addTo(map)
-                        .bindPopup(`<strong>${nombre_conductor}</strong><br>Lat: ${latitud}<br>Lng: ${longitud}`)
-                        .openPopup();
-                }
+          const puntoActual = [latitud, longitud];
+          const puntoOrigen = [latitud_origen, longitud_origen];
+          const puntoDestino = [latitud_destino, longitud_destino];
 
-                // Actualizar marcador de origen
-                if (markerOrigen) {
-                    markerOrigen.setLatLng([latitud_origen, longitud_origen]);
-                    markerOrigen.getPopup().setContent(`<strong>Origen:</strong> ${origen}`);
-                } else {
-                    markerOrigen = L.marker([latitud_origen, longitud_origen])
-                        .addTo(map)
-                        .bindPopup(`<strong>Origen:</strong> ${origen}`);
-                }
+          if (!markerConductor) {
+            markerConductor = L.marker(puntoActual, { icon: iconoCamion })
+              .addTo(map).bindPopup(`🚚 ${nombre_conductor}`).openPopup();
+          } else {
+            markerConductor.setLatLng(puntoActual).getPopup().setContent(`🚚 ${nombre_conductor}`);
+          }
 
-                // Actualizar marcador de destino
-                if (markerDestino) {
-                    markerDestino.setLatLng([latitud_destino, longitud_destino]);
-                    markerDestino.getPopup().setContent(`<strong>Destino:</strong> ${destino}`);
-                } else {
-                    markerDestino = L.marker([latitud_destino, longitud_destino])
-                        .addTo(map)
-                        .bindPopup(`<strong>Destino:</strong> ${destino}`);
-                }
+          if (!markerOrigen) {
+            markerOrigen = L.marker(puntoOrigen).addTo(map).bindPopup(`📍 Origen: ${origen}`);
+          } else {
+            markerOrigen.setLatLng(puntoOrigen).getPopup().setContent(`📍 Origen: ${origen}`);
+          }
 
-                // Trazar la ruta planificada usando OpenRouteService
-                fetch('https://api.openrouteservice.org/v2/directions/driving-hgv/geojson', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': '5b3ce3597851110001cf62489cfe518354d84a0a962e707af4cd1c4e', // Tu API KEY válida
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        coordinates: [
-                            [longitud_origen, latitud_origen],
-                            [longitud_destino, latitud_destino]
-                        ]
-                    })
-                })
-                .then(response => {
-                    if (!response.ok) throw new Error("Error al obtener ruta planificada");
-                    return response.json();
-                })
-                .then(routeData => {
-                    if (rutaPlanificada) {
-                        map.removeLayer(rutaPlanificada);
-                    }
-                    rutaPlanificada = L.geoJSON(routeData, {
-                        style: { color: 'blue', weight: 4 }
-                    }).addTo(map);
+          if (!markerDestino) {
+            markerDestino = L.marker(puntoDestino).addTo(map).bindPopup(`🏁 Destino: ${destino}`);
+          } else {
+            markerDestino.setLatLng(puntoDestino).getPopup().setContent(`🏁 Destino: ${destino}`);
+          }
 
-                    // Ajustar vista del mapa
-                    const bounds = L.latLngBounds([]);
-                    bounds.extend([latitud, longitud]); // camión
-                    bounds.extend([latitud_origen, longitud_origen]); // origen
-                    bounds.extend([latitud_destino, longitud_destino]); // destino
-                    map.fitBounds(bounds);
+          // Ruta planificada (azul)
+          fetch('https://api.openrouteservice.org/v2/directions/driving-hgv/geojson', {
+            method: 'POST',
+            headers: {
+              'Authorization': '5b3ce3597851110001cf62489cfe518354d84a0a962e707af4cd1c4e', // Tu API KEY válida
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ coordinates: [[longitud_origen, latitud_origen], [longitud_destino, latitud_destino]] })
+          })
+          .then(resp => resp.json())
+          .then(ruta => {
+            if (rutaPlanificada) map.removeLayer(rutaPlanificada);
+            rutaPlanificada = L.geoJSON(ruta, { style: { color: 'blue', weight: 4 } }).addTo(map);
+          });
 
-                })
-                .catch(err => {
-                    console.error('Error al trazar la ruta planificada:', err);
-                });
-
-                // Trazar la línea roja en tiempo real (ubicación actual → destino)
-                if (rutaTiempoReal) {
-                    map.removeLayer(rutaTiempoReal);
-                }
-                rutaTiempoReal = L.polyline(
-                    [
-                        [latitud, longitud],           // Ubicación actual del camión
-                        [latitud_destino, longitud_destino]  // Destino
-                    ],
-                    { color: 'red', weight: 3, dashArray: '5, 10' } // línea roja punteada
-                ).addTo(map);
-
-                // Mostrar última actualización
-                if (timestamp) {
-                    const ahora = new Date();
-                    const actualizacionDate = new Date(timestamp);
-                    const diffSegundos = Math.floor((ahora - actualizacionDate) / 1000);
-
-                    let textoActualizacion = "";
-                    if (diffSegundos < 60) {
-                        textoActualizacion = `Última actualización: hace ${diffSegundos} segundos`;
-                    } else if (diffSegundos < 3600) {
-                        const minutos = Math.floor(diffSegundos / 60);
-                        textoActualizacion = `Última actualización: hace ${minutos} minutos`;
-                    } else {
-                        textoActualizacion = `Última actualización: más de 1 hora`;
-                    }
-
-                    document.getElementById('ultima-actualizacion').innerText = textoActualizacion;
-                } else {
-                    document.getElementById('ultima-actualizacion').innerText = 'Última actualización: desconocida';
-                }
-
+          // Ruta en tiempo real (roja punteada usando tu API)
+          fetch('/api/trazar_ruta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              origen: [longitud, latitud],
+              destino: [longitud_destino, latitud_destino]
             })
-            .catch(err => {
-                console.error('Error al obtener ubicación:', err);
-            });
+          })
+          .then(res => res.json())
+          .then(dataRuta => {
+            if (rutaTiempoReal) map.removeLayer(rutaTiempoReal);
+            rutaTiempoReal = L.geoJSON(dataRuta, {
+              style: { color: 'red', weight: 3, dashArray: '5, 5' }
+            }).addTo(map);
+          });
+
+          map.fitBounds([puntoActual, puntoOrigen, puntoDestino]);
+
+          if (timestamp) {
+            const ahora = new Date();
+            const tiempo = new Date(timestamp);
+            const segundos = Math.floor((ahora - tiempo) / 1000);
+            const texto = segundos < 60
+              ? `Última actualización: hace ${segundos} segundos`
+              : `Última actualización: hace ${Math.floor(segundos / 60)} minutos`;
+            document.getElementById('ultima-actualizacion').innerText = texto;
+          } else {
+            document.getElementById('ultima-actualizacion').innerText = 'Última actualización: desconocida';
+          }
+        })
+        .catch(err => console.error('Error seguimiento:', err));
     }
 
-    // Auto-actualizar ubicación cada 5 segundos si hay un conductor activo
     setInterval(() => {
-        const activeConductorId = document.querySelector('.seguimiento-btn[disabled]')?.getAttribute('data-id');
-        if (activeConductorId) {
-            verSeguimiento(activeConductorId);
-        }
-    }, 5000);
-    </script>
+      const idActivo = document.querySelector('.seguimiento-btn[disabled]')?.getAttribute('data-id');
+      if (idActivo) verSeguimiento(idActivo);
+    }, 6000);
+  </script>
 </body>
 </html>
+

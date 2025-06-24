@@ -1,0 +1,236 @@
+<!-- verificar_vehiculos.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Verificar Vehículos - COBOCE</title>
+  <style>
+    :root {
+      --verde-oscuro: #004225;
+      --verde-claro: #007f5c;
+      --verde-hover: #00593b;
+      --gris-claro: #f0f0f0;
+      --blanco: #ffffff;
+      --rojo: #d9534f;
+      --naranja: #f0ad4e;
+    }
+
+    body {
+      background-color: var(--verde-oscuro);
+      color: var(--blanco);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 0 20px 40px;
+    }
+
+    header {
+      background-color: var(--verde-claro);
+      padding: 20px;
+      text-align: center;
+      border-radius: 0 0 10px 10px;
+    }
+
+    h1 {
+      margin: 0;
+    }
+
+    h2 {
+      margin-top: 40px;
+      border-bottom: 2px solid var(--verde-claro);
+      padding-bottom: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      background-color: var(--gris-claro);
+      color: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    th, td {
+      padding: 12px 15px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    th {
+      background-color: var(--verde-claro);
+      color: var(--blanco);
+    }
+
+    tr:hover {
+      background-color: #e6fff0;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .estado-disponible {
+      color: green;
+      font-weight: bold;
+    }
+
+    .estado-ocupado {
+      color: var(--naranja);
+      font-weight: bold;
+    }
+
+    .estado-no-disponible {
+      color: var(--rojo);
+      font-weight: bold;
+    }
+
+    .btn-volver {
+      display: inline-block;
+      margin-top: 30px;
+      background-color: var(--verde-claro);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .btn-volver:hover {
+      background-color: var(--verde-hover);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🚛 Verificar Vehículos</h1>
+  </header>
+
+  <section>
+    <h2>Todos los Vehículos Registrados</h2>
+    {% if todos_vehiculos %}
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Placa</th>
+          <th>Tipo</th>
+          <th>Estado General</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in todos_vehiculos %}
+        <tr>
+          <td>{{ v.id_vehiculo }}</td>
+          <td>{{ v.placa }}</td>
+          <td>{{ v.tipo_vehiculo }}</td>
+          <td>{{ v.estado or 'Sin estado' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No hay vehículos registrados.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Vehículos Disponibles</h2>
+    {% if vehiculos_disponibles %}
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Placa</th>
+          <th>Tipo</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vehiculos_disponibles %}
+        <tr>
+          <td>{{ v.id_vehiculo }}</td>
+          <td>{{ v.placa }}</td>
+          <td>{{ v.tipo_vehiculo }}</td>
+          <td class="estado-disponible">{{ v.estado }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No hay vehículos disponibles.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Vehículos Ocupados</h2>
+    {% if vehiculos_ocupados %}
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Placa</th>
+          <th>Tipo</th>
+          <th>Estado</th>
+          <th>Conductor</th>
+          <th>Destinos Asignados</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vehiculos_ocupados %}
+        <tr>
+          <td>{{ v.id_vehiculo }}</td>
+          <td>{{ v.placa }}</td>
+          <td>{{ v.tipo_vehiculo }}</td>
+          <td class="estado-ocupado">{{ v.estado }}</td>
+          <td>{{ v.conductor }}</td>
+          <td>
+            {% if v.destinos %}
+              <ul>
+              {% for d in v.destinos %}
+                <li>{{ d }}</li>
+              {% endfor %}
+              </ul>
+            {% else %}
+              Sin destino
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No hay vehículos ocupados.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Vehículos en Mantenimiento / No Disponibles</h2>
+    {% if vehiculos_no_disponibles %}
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Placa</th>
+          <th>Tipo</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vehiculos_no_disponibles %}
+        <tr>
+          <td>{{ v.id_vehiculo }}</td>
+          <td>{{ v.placa }}</td>
+          <td>{{ v.tipo_vehiculo }}</td>
+          <td class="estado-no-disponible">{{ v.estado }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No hay vehículos en mantenimiento o baja.</p>
+    {% endif %}
+  </section>
+
+  <a href="{{ url_for('asignar_entrega') }}" class="btn-volver">🔙 Volver a Asignar Entregas</a>
+</body>
+</html>

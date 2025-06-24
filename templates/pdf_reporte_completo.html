@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Reporte Completo - COBOCE</title>
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 15mm 10mm;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      color: #134e27;
+      margin: 0;
+      padding: 0;
+      background: url("{{ url_for('static', filename='fotos/cemento.png') }}") no-repeat center center fixed;
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      opacity: 0.9;
+    }
+    h1, h2 {
+      text-align: center;
+      margin: 10px 0;
+    }
+    p.fecha {
+      text-align: center;
+      font-size: 12px;
+      margin-bottom: 20px;
+      color: #045c2f;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.2rem;
+      page-break-inside: avoid;
+      background-color: rgba(255, 255, 255, 0.85);
+    }
+    th, td {
+      border: 1px solid #134e27;
+      padding: 5px 8px;
+      white-space: nowrap;
+      color: #134e27;
+    }
+    th {
+      background-color: #0e5b36;
+      color: white;
+      font-size: 12px;
+      text-align: center;
+    }
+    td {
+      font-size: 11px;
+      vertical-align: middle;
+    }
+    tr:nth-child(even) {
+      background-color: #c7e1c9;
+    }
+    .section-title {
+      margin-top: 20px;
+      margin-bottom: 10px;
+      font-size: 18px;
+      color: #045c2f;
+      font-weight: bold;
+      background-color: rgba(255, 255, 255, 0.9);
+      padding: 5px 0;
+    }
+    .tabla-entregas-wrapper {
+      overflow-x: auto;
+      margin-bottom: 20px;
+      border: 1px solid #134e27;
+      background-color: rgba(255, 255, 255, 0.9);
+      padding: 5px;
+    }
+    footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 10px;
+      color: #045c2f;
+      background-color: rgba(255, 255, 255, 0.85);
+      padding: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Reporte Completo - COBOCE</h1>
+  <p class="fecha">Fecha y hora del reporte: {{ fecha_reporte }}</p>
+
+  <!-- CONDUCTORES REGISTRADOS -->
+  <h2 class="section-title">Conductores Registrados</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th><th>Nombre Completo</th><th>Cédula</th><th>Teléfono</th><th>Dirección</th><th>Licencia</th><th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in conductores %}
+      <tr>
+        <td style="text-align:center;">{{ c.id_conductor }}</td>
+        <td>{{ c.nombre }} {{ c.apellido_paterno }} {{ c.apellido_materno }}</td>
+        <td>{{ c.cedula }}</td>
+        <td>{{ c.telefono }}</td>
+        <td>{{ c.direccion }}</td>
+        <td>{{ c.licencia }}</td>
+        <td style="text-align:center;">{{ c.estado }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" style="text-align:center;">No hay conductores registrados</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- CONDUCTORES CON ENTREGAS ACTIVAS -->
+  <h2 class="section-title">Conductores con Entregas Activas</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th><th>Nombre Completo</th><th>Cédula</th><th>Teléfono</th><th>Dirección</th><th>Licencia</th><th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in conductores_activas %}
+      <tr>
+        <td style="text-align:center;">{{ c.id_conductor }}</td>
+        <td>{{ c.nombre }} {{ c.apellido_paterno }} {{ c.apellido_materno }}</td>
+        <td>{{ c.cedula }}</td>
+        <td>{{ c.telefono }}</td>
+        <td>{{ c.direccion }}</td>
+        <td>{{ c.licencia }}</td>
+        <td style="text-align:center;">{{ c.estado }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" style="text-align:center;">No hay conductores con entregas activas</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- CONDUCTORES QUE COMPLETARON ENTREGAS -->
+  <h2 class="section-title">Conductores que Completaron Entregas</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th><th>Nombre Completo</th><th>Cédula</th><th>Teléfono</th><th>Dirección</th><th>Licencia</th><th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in conductores_completaron %}
+      <tr>
+        <td style="text-align:center;">{{ c.id_conductor }}</td>
+        <td>{{ c.nombre }} {{ c.apellido_paterno }} {{ c.apellido_materno }}</td>
+        <td>{{ c.cedula }}</td>
+        <td>{{ c.telefono }}</td>
+        <td>{{ c.direccion }}</td>
+        <td>{{ c.licencia }}</td>
+        <td style="text-align:center;">{{ c.estado }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" style="text-align:center;">No hay conductores que completaron entregas</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- CONDUCTORES LIBRES / DISPONIBLES -->
+  <h2 class="section-title">Conductores Libres / Disponibles</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th><th>Nombre Completo</th><th>Cédula</th><th>Teléfono</th><th>Dirección</th><th>Licencia</th><th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in conductores_libres %}
+      <tr>
+        <td style="text-align:center;">{{ c.id_conductor }}</td>
+        <td>{{ c.nombre }} {{ c.apellido_paterno }} {{ c.apellido_materno }}</td>
+        <td>{{ c.cedula }}</td>
+        <td>{{ c.telefono }}</td>
+        <td>{{ c.direccion }}</td>
+        <td>{{ c.licencia }}</td>
+        <td style="text-align:center;">{{ c.estado }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" style="text-align:center;">No hay conductores libres disponibles</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- VEHÍCULOS REGISTRADOS -->
+  <h2 class="section-title">Vehículos Registrados</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th><th>Placa</th><th>Modelo</th><th>Tipo</th><th>Capacidad</th><th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for v in vehiculos %}
+      <tr>
+        <td style="text-align:center;">{{ v.id_vehiculo }}</td>
+        <td>{{ v.placa }}</td>
+        <td>{{ v.modelo }}</td>
+        <td>{{ v.tipo_vehiculo }}</td>
+        <td style="text-align:right;">{{ "%.2f"|format(v.capacidad) }}</td>
+        <td style="text-align:center;">{{ v.estado }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" style="text-align:center;">No hay vehículos registrados</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- ENTREGAS PENDIENTES / EN PROCESO -->
+  <h2 class="section-title">Entregas Pendientes / En Proceso</h2>
+  <div class="tabla-entregas-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>ID Entrega</th><th>Estado</th><th>Fecha Entrega</th><th>Hora Entrega</th>
+          <th>Cliente</th><th>Teléfono</th><th>Dirección</th><th>Producto</th><th>Cantidad</th><th>Método Pago</th>
+          <th>Vehículo (Placa)</th><th>Modelo Vehículo</th><th>Tipo Vehículo</th>
+          <th>Conductor</th><th>Teléfono Conductor</th><th>Licencia</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entregas_pendientes %}
+        <tr>
+          <td style="text-align:center;">{{ e.id_entrega }}</td>
+          <td style="text-align:center;">{{ e.estado_entrega }}</td>
+          <td style="text-align:center;">{{ e.fecha_entrega or 'N/A' }}</td>
+          <td style="text-align:center;">{{ e.hora_entrega or 'N/A' }}</td>
+          <td>{{ e.cliente_nombre }}</td>
+          <td>{{ e.cliente_telefono }}</td>
+          <td>{{ e.nombre_lugar }}</td>
+          <td>{{ e.producto }}</td>
+          <td style="text-align:right;">{{ e.cantidad }}</td>
+          <td style="text-align:center;">{{ e.metodo_pago }}</td>
+          <td style="text-align:center;">{{ e.placa or 'No asignado' }}</td>
+          <td>{{ e.modelo or 'No asignado' }}</td>
+          <td>{{ e.tipo_vehiculo or 'No asignado' }}</td>
+          <td>{{ e.nombre }} {{ e.apellido_paterno }} {{ e.apellido_materno }}</td>
+          <td>{{ e.telefono_conductor }}</td>
+          <td style="text-align:center;">{{ e.licencia }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="16" style="text-align:center;">No hay entregas pendientes</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ENTREGAS COMPLETADAS -->
+  <h2 class="section-title">Entregas Completadas</h2>
+  <div class="tabla-entregas-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>ID Entrega</th><th>Fecha Entrega</th><th>Hora Entrega</th>
+          <th>Cliente</th><th>Teléfono</th><th>Dirección</th><th>Producto</th><th>Cantidad</th><th>Método Pago</th>
+          <th>Vehículo (Placa)</th><th>Modelo Vehículo</th><th>Tipo Vehículo</th>
+          <th>Conductor</th><th>Teléfono Conductor</th><th>Licencia</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entregas_completadas %}
+        <tr>
+          <td style="text-align:center;">{{ e.id_entrega }}</td>
+          <td style="text-align:center;">{{ e.fecha_entrega or 'N/A' }}</td>
+          <td style="text-align:center;">{{ e.hora_entrega or 'N/A' }}</td>
+          <td>{{ e.cliente_nombre }}</td>
+          <td>{{ e.cliente_telefono }}</td>
+          <td>{{ e.nombre_lugar }}</td>
+          <td>{{ e.producto }}</td>
+          <td style="text-align:right;">{{ e.cantidad }}</td>
+          <td style="text-align:center;">{{ e.metodo_pago }}</td>
+          <td style="text-align:center;">{{ e.placa or 'No asignado' }}</td>
+          <td>{{ e.modelo or 'No asignado' }}</td>
+          <td>{{ e.tipo_vehiculo or 'No asignado' }}</td>
+          <td>{{ e.nombre }} {{ e.apellido_paterno }} {{ e.apellido_materno }}</td>
+          <td>{{ e.telefono_conductor }}</td>
+          <td style="text-align:center;">{{ e.licencia }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="15" style="text-align:center;">No hay entregas completadas</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    © 2025 COBOCE-CEMENTO - Reporte
+  </footer>
+</body>
+</html>

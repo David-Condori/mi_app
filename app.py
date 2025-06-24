@@ -4,6 +4,8 @@ from datetime import datetime
 from geopy.geocoders import Nominatim
 import heapq
 import traceback
+from flask import Response
+import requests
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'  # Necesario para gestionar sesiones
@@ -83,7 +85,13 @@ def login():
 def dashboard():
     if 'usuario' not in session or session.get('rol') != 'administrador':
         return redirect(url_for('login'))
-    return render_template('dashboard.html')
+
+    nombre_completo = session.get('usuario', 'Usuario Desconocido')
+    rol = session.get('rol', 'Rol Desconocido')
+
+    return render_template('dashboard.html',
+                           usuario_nombre_completo=nombre_completo,
+                           usuario_rol=rol)
 
 
 
@@ -338,20 +346,22 @@ def seguimiento():
         connection = get_db_connection()
         cursor = connection.cursor(dictionary=True)
 
-        # Traer entregas activas (JOIN con las tablas necesarias)
+        # Traer entregas activas con todos los datos necesarios
         cursor.execute("""
             SELECT
                 c.id_conductor,
-                c.nombre AS nombre_conductor,
+                CONCAT(c.nombre, ' ', c.apellido_paterno, ' ', c.apellido_materno) AS nombre_conductor,
                 v.placa,
                 r.origen,
-                r.destino
+                r.destino,
+                e.estado_entrega,
+                e.fecha_entrega
             FROM Entregas e
             INNER JOIN Asignaciones_Rutas ar ON e.id_asignacion = ar.id_asignacion
             INNER JOIN Conductores c ON ar.id_conductor = c.id_conductor
             INNER JOIN Vehiculos v ON ar.id_vehiculo = v.id_vehiculo
             INNER JOIN Rutas r ON ar.id_ruta = r.id_ruta
-            WHERE e.estado_entrega != 'completado'
+            WHERE e.estado_entrega IN ('Asignada', 'pendiente', 'Incidente Reportado')
         """)
 
         entregas = cursor.fetchall()
@@ -359,12 +369,12 @@ def seguimiento():
         return render_template('seguimiento.html', entregas=entregas)
 
     except mysql.connector.Error as err:
-        print(f"Error de base de datos: {err}")
-        return f"Error de base de datos: {err}"
+        print(f"[Error MySQL] {err}")
+        return "Error al obtener datos de seguimiento."
 
     finally:
-        cursor.close()
-        connection.close()
+        if cursor: cursor.close()
+        if connection: connection.close()
 
 
 @app.route('/api/ubicaciones')
@@ -550,17 +560,15 @@ def asignar_entrega():
         else:
             conductor_id = request.form['conductor_id']
             vehiculo_id = request.form['vehiculo_id']
-            pedido_id = request.form.get('pedido_id')  # seleccionamos un pedido
-            origen = request.form.get('origen')        # nuevo campo origen seleccionado
+            pedido_id = request.form.get('pedido_id')
+            origen = request.form.get('origen')
 
             if not conductor_id or not vehiculo_id or not pedido_id or not origen:
                 error_message = "Todos los campos son obligatorios."
             else:
                 try:
-                    # Obtener datos del pedido con id
-                    cursor.execute("""
-                        SELECT * FROM Pedidos WHERE id = %s AND estado = 'Pendiente'
-                    """, (pedido_id,))
+                    # Obtener pedido
+                    cursor.execute("SELECT * FROM Pedidos WHERE id = %s AND estado = 'Pendiente'", (pedido_id,))
                     pedido = cursor.fetchone()
 
                     if not pedido:
@@ -570,24 +578,20 @@ def asignar_entrega():
                     lat_destino = pedido["latitud"]
                     lon_destino = pedido["longitud"]
 
-                    # Verificar si ya existe esa ruta origen->destino
-                    cursor.execute("""
-                        SELECT * FROM Rutas WHERE origen = %s AND destino = %s
-                    """, (origen, destino))
+                    # Verificar si la ruta ya existe
+                    cursor.execute("SELECT * FROM Rutas WHERE origen = %s AND destino = %s", (origen, destino))
                     ruta = cursor.fetchone()
 
                     if not ruta:
-                        # Obtener coordenadas del origen (desde la tabla Rutas por si ya tiene)
                         cursor.execute("""
                             SELECT latitud_origen, longitud_origen FROM Rutas WHERE origen = %s LIMIT 1
                         """, (origen,))
                         fila_origen = cursor.fetchone()
 
-                        if fila_origen and fila_origen['latitud_origen'] is not None and fila_origen['longitud_origen'] is not None:
+                        if fila_origen and fila_origen['latitud_origen'] is not None:
                             lat_origen = fila_origen['latitud_origen']
                             lon_origen = fila_origen['longitud_origen']
                         else:
-                            # Hacer geocoding para origen
                             location_o = geolocator.geocode(origen)
                             if location_o:
                                 lat_origen = location_o.latitude
@@ -595,7 +599,6 @@ def asignar_entrega():
                             else:
                                 raise Exception("No se pudo obtener coordenadas para el origen.")
 
-                        # Insertar nueva ruta con coordenadas
                         cursor.execute("""
                             INSERT INTO Rutas (origen, destino, latitud_origen, longitud_origen, latitud_destino, longitud_destino)
                             VALUES (%s, %s, %s, %s, %s, %s)
@@ -612,34 +615,53 @@ def asignar_entrega():
                     """, (conductor_id, vehiculo_id, ruta_id))
                     id_asignacion = cursor.lastrowid
 
-                    # Insertar entrega y vincular al pedido
+                    # Insertar entrega
                     cursor.execute("""
                         INSERT INTO Entregas (id_asignacion, id_pedido, fecha_entrega, estado_entrega)
                         VALUES (%s, %s, CURDATE(), 'pendiente')
                     """, (id_asignacion, pedido_id))
 
-                    # Cambiar estado del pedido
-                    cursor.execute("""
-                        UPDATE Pedidos SET estado = 'Asignado' WHERE id = %s
-                    """, (pedido_id,))
-
+                    # Actualizar estado del pedido
+                    cursor.execute("UPDATE Pedidos SET estado = 'Asignado' WHERE id = %s", (pedido_id,))
                     connection.commit()
                     success_message = "Entrega asignada exitosamente con base en el pedido y origen seleccionado."
                 except Exception as e:
                     connection.rollback()
                     error_message = f"Error al asignar entrega: {e}"
 
-    # Datos para el formulario
-    cursor.execute("SELECT id_conductor, nombre, apellido_paterno, apellido_materno FROM Conductores")
+    # 🔽 Obtener conductores disponibles
+    cursor.execute("""
+        SELECT c.id_conductor, c.nombre, c.apellido_paterno, c.apellido_materno
+        FROM Conductores c
+        WHERE LOWER(c.estado) NOT IN ('permiso', 'baja', 'baja médica', 'baja medica')
+        AND c.id_conductor NOT IN (
+            SELECT ar.id_conductor
+            FROM Asignaciones_Rutas ar
+            JOIN Entregas e ON ar.id_asignacion = e.id_asignacion
+            WHERE e.estado_entrega = 'pendiente'
+        )
+    """)
     conductores = cursor.fetchall()
 
-    cursor.execute("SELECT id_vehiculo, placa, tipo_vehiculo FROM Vehiculos")
+    # 🔽 Obtener vehículos disponibles
+    cursor.execute("""
+        SELECT v.id_vehiculo, v.placa, v.tipo_vehiculo
+        FROM Vehiculos v
+        WHERE LOWER(v.estado) NOT IN ('mantenimiento', 'baja')
+        AND v.id_vehiculo NOT IN (
+            SELECT ar.id_vehiculo
+            FROM Asignaciones_Rutas ar
+            JOIN Entregas e ON ar.id_asignacion = e.id_asignacion
+            WHERE e.estado_entrega = 'pendiente'
+        )
+    """)
     vehiculos = cursor.fetchall()
 
+    # 🔽 Obtener todos los orígenes conocidos
     cursor.execute("SELECT DISTINCT origen, latitud_origen, longitud_origen FROM Rutas")
     origenes = cursor.fetchall()
 
-    # Pedidos pendientes
+    # 🔽 Pedidos pendientes
     cursor.execute("""
         SELECT id, cliente_nombre, producto, cantidad, nombre_lugar
         FROM Pedidos
@@ -647,7 +669,7 @@ def asignar_entrega():
     """)
     pedidos_pendientes = cursor.fetchall()
 
-    # Entregas existentes
+    # 🔽 Entregas asignadas
     cursor.execute("""
         SELECT
             e.id_entrega, e.fecha_entrega, e.estado_entrega,
@@ -1073,6 +1095,7 @@ def ubicacion_actual():
         cursor.close()
         connection.close()
 
+
 @app.route('/api/conductores_asignados')
 def api_conductores_asignados():
     cursor = mysql.connection.cursor(dictionary=True)
@@ -1200,18 +1223,48 @@ def marcar_entrega_entregada(id_entrega):
 
     try:
         connection = get_db_connection()
-        cursor = connection.cursor()
+        cursor = connection.cursor(dictionary=True)
 
-        # Cambiar el estado a 'entregado'
+        # 1. Obtener el ID de la asignación
         cursor.execute("""
-            UPDATE Entregas
-            SET estado_entrega = 'entregado'
-            WHERE id_entrega = %s
+            SELECT ar.id_asignacion, ar.id_conductor, ar.id_vehiculo
+            FROM Entregas e
+            JOIN Asignaciones_Rutas ar ON e.id_asignacion = ar.id_asignacion
+            WHERE e.id_entrega = %s
         """, (id_entrega,))
-        connection.commit()
+        asignacion = cursor.fetchone()
+
+        if asignacion:
+            # 2. Cambiar estado de la entrega
+            cursor.execute("""
+                UPDATE Entregas SET estado_entrega = 'entregado'
+                WHERE id_entrega = %s
+            """, (id_entrega,))
+
+            # 3. Cambiar estado de la asignación a 'finalizada'
+            cursor.execute("""
+                UPDATE Asignaciones_Rutas
+                SET estado_asignacion = 'finalizada'
+                WHERE id_asignacion = %s
+            """, (asignacion['id_asignacion'],))
+
+            # 4. Cambiar estado del conductor a 'disponible'
+            cursor.execute("""
+                UPDATE Conductores SET estado_actual = 'disponible'
+                WHERE id_conductor = %s
+            """, (asignacion['id_conductor'],))
+
+            # 5. Cambiar estado del vehículo a 'disponible'
+            cursor.execute("""
+                UPDATE Vehiculos SET estado_actual = 'disponible'
+                WHERE id_vehiculo = %s
+            """, (asignacion['id_vehiculo'],))
+
+            connection.commit()
 
     except mysql.connector.Error as err:
         print(f"Error en la base de datos al marcar entregada: {err}")
+        connection.rollback()
 
     finally:
         cursor.close()
@@ -1219,8 +1272,7 @@ def marcar_entrega_entregada(id_entrega):
 
     return redirect(url_for('panel_conductor'))
 
-import requests
-from flask import Response
+
 
 @app.route('/api/trazar_ruta', methods=['POST'])
 def trazar_ruta():
@@ -1249,6 +1301,7 @@ def trazar_ruta():
     except Exception as e:
         print("Error al trazar ruta:", e)
         return jsonify({'error': 'Error al comunicarse con OpenRouteService'}), 500
+
 
 @app.route('/seguimiento_entregas')
 def seguimiento_entregas():
@@ -1609,67 +1662,58 @@ def reporte_vehiculos():
     connection = get_db_connection()
     cursor = connection.cursor(dictionary=True)
 
-    # 1. Total vehículos
+    # Total de vehículos
     cursor.execute("SELECT COUNT(*) AS total FROM Vehiculos")
     total_vehiculos = cursor.fetchone()['total']
 
-    # 2. Vehículos con entregas pendientes o asignadas (activos)
+    # Vehículos en entrega (estado pendiente o asignada)
     cursor.execute("""
-        SELECT COUNT(DISTINCT v.id_vehiculo) AS activos
+        SELECT DISTINCT v.id_vehiculo, v.placa, v.modelo, v.tipo_vehiculo, v.estado,
+               c.nombre AS nombre_conductor, c.apellido_paterno AS apellido_conductor
         FROM Vehiculos v
         JOIN Asignaciones_Rutas a ON v.id_vehiculo = a.id_vehiculo
         JOIN Entregas e ON a.id_asignacion = e.id_asignacion
+        LEFT JOIN Conductores c ON a.id_conductor = c.id_conductor
         WHERE LOWER(e.estado_entrega) IN ('pendiente', 'asignada')
     """)
-    vehiculos_activos = cursor.fetchone()['activos']
+    vehiculos_en_entrega = cursor.fetchall()
 
-    # 3. Vehículos con entregas asignadas (Asignado sin importar estado)
+    # Vehículos que completaron entregas (estado entregado)
     cursor.execute("""
-        SELECT COUNT(DISTINCT v.id_vehiculo) AS asignados
+        SELECT DISTINCT v.id_vehiculo, v.placa, v.modelo, v.tipo_vehiculo, v.estado,
+               c.nombre AS nombre_conductor, c.apellido_paterno AS apellido_conductor
         FROM Vehiculos v
         JOIN Asignaciones_Rutas a ON v.id_vehiculo = a.id_vehiculo
+        JOIN Entregas e ON a.id_asignacion = e.id_asignacion
+        LEFT JOIN Conductores c ON a.id_conductor = c.id_conductor
+        WHERE LOWER(e.estado_entrega) = 'entregado'
     """)
-    vehiculos_asignados = cursor.fetchone()['asignados']
+    vehiculos_entregados = cursor.fetchall()
 
-    # 4. Vehículos sin entregas (nunca fueron asignados)
+    # Vehículos libres (no tienen asignaciones con entregas pendientes o asignadas)
     cursor.execute("""
-        SELECT COUNT(*) AS sin_entrega
-        FROM Vehiculos
-        WHERE id_vehiculo NOT IN (
-            SELECT DISTINCT id_vehiculo FROM Asignaciones_Rutas
+        SELECT v.id_vehiculo, v.placa, v.modelo, v.tipo_vehiculo, v.estado
+        FROM Vehiculos v
+        WHERE v.id_vehiculo NOT IN (
+            SELECT DISTINCT a.id_vehiculo
+            FROM Asignaciones_Rutas a
+            JOIN Entregas e ON a.id_asignacion = e.id_asignacion
+            WHERE LOWER(e.estado_entrega) IN ('pendiente', 'asignada')
         )
     """)
-    vehiculos_sin_entrega = cursor.fetchone()['sin_entrega']
+    vehiculos_libres = cursor.fetchall()
 
-    # 5. Lista detallada de vehículos con conductor si tiene
+    # Todos los vehículos con su último conductor asignado
     cursor.execute("""
         SELECT v.id_vehiculo, v.placa, v.modelo, v.tipo_vehiculo, v.estado,
-               c.nombre AS nombre_conductor, c.apellido_paterno AS apellido_conductor,
-               (
-                   SELECT COUNT(*) FROM Asignaciones_Rutas ar
-                   JOIN Entregas e ON ar.id_asignacion = e.id_asignacion
-                   WHERE ar.id_vehiculo = v.id_vehiculo AND LOWER(e.estado_entrega) IN ('pendiente', 'asignada')
-               ) AS es_activo,
-               (
-                   SELECT COUNT(*) FROM Asignaciones_Rutas ar
-                   WHERE ar.id_vehiculo = v.id_vehiculo
-               ) AS tiene_asignacion
+               c.nombre AS nombre_conductor, c.apellido_paterno AS apellido_conductor
         FROM Vehiculos v
         LEFT JOIN Asignaciones_Rutas a ON v.id_vehiculo = a.id_vehiculo
         LEFT JOIN Conductores c ON a.id_conductor = c.id_conductor
         GROUP BY v.id_vehiculo
         ORDER BY v.placa ASC
     """)
-    lista = cursor.fetchall()
-
-    # Clasificar vehículos para filtro en frontend
-    for v in lista:
-        if v['es_activo'] > 0:
-            v['clasificacion'] = 'activo'
-        elif v['tiene_asignacion'] > 0:
-            v['clasificacion'] = 'asignado'
-        else:
-            v['clasificacion'] = 'sin-entrega'
+    todos_los_vehiculos = cursor.fetchall()
 
     cursor.close()
     connection.close()
@@ -1677,10 +1721,10 @@ def reporte_vehiculos():
     return render_template(
         'reporte_vehiculos.html',
         total_vehiculos=total_vehiculos,
-        vehiculos_activos=vehiculos_activos,
-        vehiculos_asignados=vehiculos_asignados,
-        vehiculos_sin_entrega=vehiculos_sin_entrega,
-        lista_vehiculos=lista
+        vehiculos_en_entrega=vehiculos_en_entrega,
+        vehiculos_entregados=vehiculos_entregados,
+        vehiculos_libres=vehiculos_libres,
+        todos_los_vehiculos=todos_los_vehiculos
     )
 
 
@@ -1751,7 +1795,423 @@ def ver_mis_pedidos():
         traceback.print_exc()
         return f"Ocurrió un error: {str(e)}", 500
 
+@app.route('/verificar_conductores')
+def verificar_conductores():
+    connection = get_db_connection()
+    cursor = connection.cursor(dictionary=True)
 
+    # Consulta para obtener todos los conductores con su estado general
+    cursor.execute("""
+        SELECT
+            c.id_conductor, c.nombre, c.apellido_paterno, c.apellido_materno, c.estado
+        FROM Conductores c
+        ORDER BY c.nombre
+    """)
+    todos_conductores_db = cursor.fetchall()
+
+    # Consulta con LEFT JOIN para obtener conductores con entregas pendientes y destinos
+    cursor.execute("""
+        SELECT
+            c.id_conductor, c.nombre, c.apellido_paterno, c.apellido_materno, c.estado,
+            e.estado_entrega, r.destino
+        FROM Conductores c
+        LEFT JOIN Asignaciones_Rutas ar ON c.id_conductor = ar.id_conductor
+        LEFT JOIN Entregas e ON ar.id_asignacion = e.id_asignacion AND e.estado_entrega = 'pendiente'
+        LEFT JOIN Rutas r ON ar.id_ruta = r.id_ruta
+        ORDER BY c.nombre
+    """)
+    filas = cursor.fetchall()
+
+    # Inicializamos listas para clasificar conductores
+    conductores_disponibles = []
+    conductores_ocupados = []
+    conductores_no_disponibles = []
+
+    # Para evitar duplicados en ocupados
+    temp_ocupados = {}
+    ids_disponibles = set()
+    ids_no_disponibles = set()
+
+    for fila in filas:
+        id_c = fila['id_conductor']
+        estado_conductor = fila['estado'].lower() if fila['estado'] else ''
+        tiene_entrega_pendiente = fila['estado_entrega'] == 'pendiente'
+
+        # Clasificar no disponibles
+        if estado_conductor in ['permiso', 'baja médica', 'baja medica', 'baja']:
+            if id_c not in ids_no_disponibles:
+                conductores_no_disponibles.append({
+                    'id_conductor': id_c,
+                    'nombre_completo': f"{fila['nombre']} {fila['apellido_paterno']} {fila['apellido_materno']}",
+                    'estado': fila['estado']
+                })
+                ids_no_disponibles.add(id_c)
+
+        # Clasificar ocupados (entregas pendientes)
+        elif tiene_entrega_pendiente:
+            if id_c in temp_ocupados:
+                if fila['destino'] and fila['destino'] not in temp_ocupados[id_c]['destinos']:
+                    temp_ocupados[id_c]['destinos'].append(fila['destino'])
+            else:
+                temp_ocupados[id_c] = {
+                    'id_conductor': id_c,
+                    'nombre_completo': f"{fila['nombre']} {fila['apellido_paterno']} {fila['apellido_materno']}",
+                    'estado': fila['estado'] or 'Ocupado',
+                    'destinos': [fila['destino']] if fila['destino'] else []
+                }
+
+        # Clasificar disponibles (los que no están en permiso ni ocupados)
+        else:
+            ids_disponibles.add(id_c)
+
+    # Convertir dict de ocupados a lista
+    conductores_ocupados = list(temp_ocupados.values())
+
+    # Ahora generar la lista de disponibles pero filtrando para que no estén en ocupados ni no disponibles
+    for c in todos_conductores_db:
+        if c['id_conductor'] not in temp_ocupados and c['id_conductor'] not in ids_no_disponibles:
+            conductores_disponibles.append({
+                'id_conductor': c['id_conductor'],
+                'nombre_completo': f"{c['nombre']} {c['apellido_paterno']} {c['apellido_materno']}",
+                'estado': c['estado'] or 'Disponible'
+            })
+
+    cursor.close()
+    connection.close()
+
+    return render_template('verificar_conductores.html',
+                           todos_conductores=todos_conductores_db,
+                           conductores_disponibles=conductores_disponibles,
+                           conductores_ocupados=conductores_ocupados,
+                           conductores_no_disponibles=conductores_no_disponibles)
+
+@app.route('/verificar_vehiculos')
+def verificar_vehiculos():
+    connection = get_db_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    # Obtener todos los vehículos
+    cursor.execute("SELECT id_vehiculo, placa, tipo_vehiculo, estado FROM Vehiculos")
+    todos_vehiculos = cursor.fetchall()
+
+    # Consulta con JOIN para ver estado actual de los vehículos en uso
+    cursor.execute("""
+        SELECT
+            v.id_vehiculo, v.placa, v.tipo_vehiculo, v.estado,
+            e.estado_entrega, r.destino,
+            c.nombre, c.apellido_paterno, c.apellido_materno
+        FROM Vehiculos v
+        LEFT JOIN Asignaciones_Rutas ar ON v.id_vehiculo = ar.id_vehiculo
+        LEFT JOIN Entregas e ON ar.id_asignacion = e.id_asignacion AND e.estado_entrega = 'pendiente'
+        LEFT JOIN Rutas r ON ar.id_ruta = r.id_ruta
+        LEFT JOIN Conductores c ON ar.id_conductor = c.id_conductor
+        ORDER BY v.placa
+    """)
+    filas = cursor.fetchall()
+
+    vehiculos_disponibles = []
+    vehiculos_ocupados_dict = {}
+    vehiculos_no_disponibles = []
+    ya_listados_disponibles = set()
+    ya_listados_ocupados = set()
+
+    for fila in filas:
+        estado = fila['estado'].lower() if fila['estado'] else ''
+        vehiculo_id = fila['id_vehiculo']
+        tiene_entrega = fila['estado_entrega'] == 'pendiente'
+
+        if estado in ['mantenimiento', 'baja', 'no disponible']:
+            if vehiculo_id not in [v['id_vehiculo'] for v in vehiculos_no_disponibles]:
+                vehiculos_no_disponibles.append({
+                    'id_vehiculo': vehiculo_id,
+                    'placa': fila['placa'],
+                    'tipo_vehiculo': fila['tipo_vehiculo'],
+                    'estado': fila['estado']
+                })
+        elif tiene_entrega:
+            if vehiculo_id in vehiculos_ocupados_dict:
+                if fila['destino'] and fila['destino'] not in vehiculos_ocupados_dict[vehiculo_id]['destinos']:
+                    vehiculos_ocupados_dict[vehiculo_id]['destinos'].append(fila['destino'])
+            else:
+                nombre_conductor = f"{fila['nombre']} {fila['apellido_paterno']} {fila['apellido_materno']}" if fila['nombre'] else "Sin conductor"
+                vehiculos_ocupados_dict[vehiculo_id] = {
+                    'id_vehiculo': vehiculo_id,
+                    'placa': fila['placa'],
+                    'tipo_vehiculo': fila['tipo_vehiculo'],
+                    'estado': fila['estado'],
+                    'conductor': nombre_conductor,
+                    'destinos': [fila['destino']] if fila['destino'] else []
+                }
+            ya_listados_ocupados.add(vehiculo_id)
+        else:
+            if vehiculo_id not in ya_listados_disponibles and vehiculo_id not in ya_listados_ocupados:
+                vehiculos_disponibles.append({
+                    'id_vehiculo': vehiculo_id,
+                    'placa': fila['placa'],
+                    'tipo_vehiculo': fila['tipo_vehiculo'],
+                    'estado': fila['estado'] or 'Disponible'
+                })
+                ya_listados_disponibles.add(vehiculo_id)
+
+    cursor.close()
+    connection.close()
+
+    return render_template('verificar_vehiculos.html',
+                           todos_vehiculos=todos_vehiculos,
+                           vehiculos_disponibles=vehiculos_disponibles,
+                           vehiculos_ocupados=list(vehiculos_ocupados_dict.values()),
+                           vehiculos_no_disponibles=vehiculos_no_disponibles)
+
+from flask import make_response
+from xhtml2pdf import pisa
+import io
+from pytz import timezone
+
+@app.route('/reporte_vehiculos/pdf')
+def reporte_vehiculos_pdf():
+    connection = get_db_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    # Vehículos con entregas activas (pendiente o asignada)
+    cursor.execute("""
+        SELECT DISTINCT v.id_vehiculo, v.placa, v.modelo, v.tipo_vehiculo, v.estado,
+               c.nombre AS nombre_conductor, c.apellido_paterno AS apellido_conductor
+        FROM Vehiculos v
+        JOIN Asignaciones_Rutas a ON v.id_vehiculo = a.id_vehiculo
+        JOIN Entregas e ON a.id_asignacion = e.id_asignacion
+        LEFT JOIN Conductores c ON a.id_conductor = c.id_conductor
+        WHERE LOWER(e.estado_entrega) IN ('pendiente', 'asignada')
+        ORDER BY v.placa
+    """)
+    vehiculos_en_entrega = cursor.fetchall()
+
+    # Vehículos que completaron entregas (estado entregado)
+    cursor.execute("""
+        SELECT DISTINCT v.id_vehiculo, v.placa, v.modelo, v.tipo_vehiculo, v.estado,
+               c.nombre AS nombre_conductor, c.apellido_paterno AS apellido_conductor
+        FROM Vehiculos v
+        JOIN Asignaciones_Rutas a ON v.id_vehiculo = a.id_vehiculo
+        JOIN Entregas e ON a.id_asignacion = e.id_asignacion
+        LEFT JOIN Conductores c ON a.id_conductor = c.id_conductor
+        WHERE LOWER(e.estado_entrega) = 'entregado'
+        ORDER BY v.placa
+    """)
+    vehiculos_entregados = cursor.fetchall()
+
+    # Vehículos libres (sin entregas activas)
+    cursor.execute("""
+        SELECT v.id_vehiculo, v.placa, v.modelo, v.tipo_vehiculo, v.estado
+        FROM Vehiculos v
+        WHERE v.id_vehiculo NOT IN (
+            SELECT DISTINCT a.id_vehiculo
+            FROM Asignaciones_Rutas a
+            JOIN Entregas e ON a.id_asignacion = e.id_asignacion
+            WHERE LOWER(e.estado_entrega) IN ('pendiente', 'asignada')
+        )
+        ORDER BY v.placa
+    """)
+    vehiculos_libres = cursor.fetchall()
+
+    tz = timezone('America/La_Paz')
+    fecha_reporte = datetime.now(tz).strftime('%d/%m/%Y %H:%M:%S')
+
+    cursor.close()
+    connection.close()
+
+    # Renderizar plantilla con los datos
+    html = render_template(
+        'pdf_reporte_vehiculos.html',
+        vehiculos_en_entrega=vehiculos_en_entrega,
+        vehiculos_entregados=vehiculos_entregados,
+        vehiculos_libres=vehiculos_libres
+    )
+
+    # Crear PDF
+    pdf = io.BytesIO()
+    pisa_status = pisa.CreatePDF(html, dest=pdf)
+    if pisa_status.err:
+        return "Error al generar PDF", 500
+
+    response = make_response(pdf.getvalue())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'inline; filename=reporte_vehiculos.pdf'
+    return response
+
+@app.route('/admin/reporte_completo/pdf')
+def reporte_completo_pdf():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Todos los conductores registrados
+    cursor.execute("SELECT * FROM Conductores ORDER BY nombre ASC")
+    conductores = cursor.fetchall()
+
+    # Vehículos
+    cursor.execute("SELECT * FROM Vehiculos ORDER BY placa ASC")
+    vehiculos = cursor.fetchall()
+
+    # Entregas pendientes o en proceso
+    cursor.execute("""
+    SELECT
+      e.id_entrega,
+      e.estado_entrega,
+      e.fecha_entrega,
+      e.hora_entrega,
+      p.cliente_nombre,
+      p.cliente_telefono,
+      p.nombre_lugar,
+      p.producto,
+      p.cantidad,
+      p.metodo_pago,
+      v.placa,
+      v.modelo,
+      v.tipo_vehiculo,
+      c.nombre,
+      c.apellido_paterno,
+      c.apellido_materno,
+      c.telefono AS telefono_conductor,
+      c.estado AS estado_conductor,
+      c.licencia
+    FROM Entregas e
+    LEFT JOIN Pedidos p ON e.id_pedido = p.id
+    LEFT JOIN Asignaciones_Rutas a ON e.id_asignacion = a.id_asignacion
+    LEFT JOIN Vehiculos v ON a.id_vehiculo = v.id_vehiculo
+    LEFT JOIN Conductores c ON a.id_conductor = c.id_conductor
+    WHERE LOWER(e.estado_entrega) IN ('pendiente', 'asignada', 'en proceso')
+    ORDER BY e.fecha_entrega DESC, e.hora_entrega DESC
+    """)
+    entregas_pendientes = cursor.fetchall()
+
+    # Entregas completadas
+    cursor.execute("""
+    SELECT
+      e.id_entrega,
+      e.estado_entrega,
+      e.fecha_entrega,
+      e.hora_entrega,
+      p.cliente_nombre,
+      p.cliente_telefono,
+      p.nombre_lugar,
+      p.producto,
+      p.cantidad,
+      p.metodo_pago,
+      v.placa,
+      v.modelo,
+      v.tipo_vehiculo,
+      c.nombre,
+      c.apellido_paterno,
+      c.apellido_materno,
+      c.telefono AS telefono_conductor,
+      c.estado AS estado_conductor,
+      c.licencia
+    FROM Entregas e
+    LEFT JOIN Pedidos p ON e.id_pedido = p.id
+    LEFT JOIN Asignaciones_Rutas a ON e.id_asignacion = a.id_asignacion
+    LEFT JOIN Vehiculos v ON a.id_vehiculo = v.id_vehiculo
+    LEFT JOIN Conductores c ON a.id_conductor = c.id_conductor
+    WHERE LOWER(e.estado_entrega) = 'entregado'
+    ORDER BY e.fecha_entrega DESC, e.hora_entrega DESC
+    """)
+    entregas_completadas = cursor.fetchall()
+
+    # Conductores con entregas activas (pendiente, asignada, en proceso)
+    cursor.execute("""
+    SELECT DISTINCT c.*
+    FROM Conductores c
+    JOIN Asignaciones_Rutas a ON c.id_conductor = a.id_conductor
+    JOIN Entregas e ON a.id_asignacion = e.id_asignacion
+    WHERE LOWER(e.estado_entrega) IN ('pendiente', 'asignada', 'en proceso')
+    ORDER BY c.nombre ASC
+    """)
+    conductores_activas = cursor.fetchall()
+
+    # Conductores que completaron entregas (entregado)
+    cursor.execute("""
+    SELECT DISTINCT c.*
+    FROM Conductores c
+    JOIN Asignaciones_Rutas a ON c.id_conductor = a.id_conductor
+    JOIN Entregas e ON a.id_asignacion = e.id_asignacion
+    WHERE LOWER(e.estado_entrega) = 'entregado'
+    ORDER BY c.nombre ASC
+    """)
+    conductores_completaron = cursor.fetchall()
+
+    # Conductores libres / disponibles (sin entregas activas)
+    cursor.execute("""
+    SELECT c.*
+    FROM Conductores c
+    WHERE c.id_conductor NOT IN (
+      SELECT DISTINCT a.id_conductor
+      FROM Asignaciones_Rutas a
+      JOIN Entregas e ON a.id_asignacion = e.id_asignacion
+      WHERE LOWER(e.estado_entrega) IN ('pendiente', 'asignada', 'en proceso')
+    )
+    ORDER BY c.nombre ASC
+    """)
+    conductores_libres = cursor.fetchall()
+
+    # Obtener fecha/hora actual con zona Bolivia
+    tz = timezone('America/La_Paz')
+    fecha_reporte = datetime.now(tz).strftime('%d/%m/%Y %H:%M:%S')
+
+    # Renderizar el HTML del reporte
+    html = render_template('pdf_reporte_completo.html',
+                           conductores=conductores,
+                           vehiculos=vehiculos,
+                           entregas_pendientes=entregas_pendientes,
+                           entregas_completadas=entregas_completadas,
+                           conductores_activas=conductores_activas,
+                           conductores_completaron=conductores_completaron,
+                           conductores_libres=conductores_libres,
+                           fecha_reporte=fecha_reporte)
+
+    # Generar PDF con xhtml2pdf
+    pdf = io.BytesIO()
+    pisa_status = pisa.CreatePDF(io.StringIO(html), dest=pdf)
+    if pisa_status.err:
+        return "Error al generar PDF", 500
+
+    pdf.seek(0)
+    response = make_response(pdf.read())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'inline; filename=reporte_completo_coboce.pdf'
+
+    cursor.close()
+    conn.close()
+
+    return response
+
+@app.route('/mapa_conductores')
+def mapa_conductores():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT
+            e.id_entrega,
+            p.nombre_lugar,
+            p.latitud AS destino_lat,
+            p.longitud AS destino_lon,
+            c.id_conductor,
+            c.nombre, c.apellido_paterno, c.apellido_materno,
+            u.latitud AS actual_lat,
+            u.longitud AS actual_lon,
+            r.latitud_origen,
+            r.longitud_origen
+        FROM Entregas e
+        JOIN Asignaciones_Rutas a ON e.id_asignacion = a.id_asignacion
+        JOIN Conductores c ON a.id_conductor = c.id_conductor
+        JOIN Rutas r ON a.id_ruta = r.id_ruta
+        JOIN Pedidos p ON e.id_pedido = p.id
+        LEFT JOIN UbicacionActual u ON c.id_conductor = u.id_conductor
+        WHERE e.estado_entrega != 'Entregado'
+    """)
+    datos = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return render_template('mapa_conductores.html', datos=datos)
 
 @app.route('/logout')
 def logout():
@@ -1762,6 +2222,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mapa en Tiempo Real - Supervisor</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    #map { height: 90vh; margin: 20px auto; width: 95%; border: 3px solid #134e27; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f0f0f0; }
+    h1 { text-align: center; color: #134e27; padding-top: 15px; }
+  </style>
+</head>
+<body>
+  <h1>Mapa en Tiempo Real de Conductores y Entregas</h1>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const ORS_API_KEY = '5b3ce3597851110001cf62484aaf928f43e70cf577d4dc175ce0e713aec1334d7b07af0a45ee57d2';
+
+    const mapa = L.map('map').setView([-17.4, -66.15], 7);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18
+    }).addTo(mapa);
+
+    const datos = {{ datos | tojson }};
+
+    async function dibujarRuta(origen, destino, color) {
+      const url = `https://api.openrouteservice.org/v2/directions/driving-car/geojson`;
+      const body = {
+        coordinates: [
+          [origen[1], origen[0]], // lon, lat
+          [destino[1], destino[0]]
+        ]
+      };
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8',
+            'Content-Type': 'application/json',
+            'Authorization': ORS_API_KEY
+          },
+          body: JSON.stringify(body)
+        });
+        if (!response.ok) throw new Error('Error en OpenRouteService API');
+        const data = await response.json();
+
+        const coords = data.features[0].geometry.coordinates.map(c => [c[1], c[0]]);
+        L.polyline(coords, { color: color, weight: 5, opacity: 0.7 }).addTo(mapa);
+      } catch (error) {
+        console.error('Error obteniendo ruta:', error);
+      }
+    }
+
+    // Iconos tipo "gota" SVG base64 para origen y destino
+
+    const iconGotaOrigen = L.icon({
+      iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="blue">
+          <path d="M12 2C8 8 5 12 5 16a7 7 0 0 0 14 0c0-4-3-8-7-14z"/>
+        </svg>
+      `),
+      iconSize: [24, 36],
+      iconAnchor: [12, 36],
+      popupAnchor: [0, -36],
+      className: 'icon-gota-origen'
+    });
+
+    const iconGotaDestino = L.icon({
+      iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="red">
+          <path d="M12 2C8 8 5 12 5 16a7 7 0 0 0 14 0c0-4-3-8-7-14z"/>
+        </svg>
+      `),
+      iconSize: [24, 36],
+      iconAnchor: [12, 36],
+      popupAnchor: [0, -36],
+      className: 'icon-gota-destino'
+    });
+
+    // Icono para ubicación actual del conductor (camión)
+    const iconConductor = L.icon({
+      iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32],
+      className: 'icon-conductor'
+    });
+
+    const colores = ['blue', 'green', 'red', 'orange', 'purple', 'brown', 'cyan', 'magenta'];
+
+    datos.forEach((e, index) => {
+      const colorRuta = colores[index % colores.length];
+      const conductor = `${e.nombre} ${e.apellido_paterno} ${e.apellido_materno}`;
+
+      // Origen - ícono gota azul
+      if (e.latitud_origen && e.longitud_origen) {
+        L.marker([e.latitud_origen, e.longitud_origen], { icon: iconGotaOrigen })
+          .addTo(mapa)
+          .bindPopup(`<b>Origen de Ruta</b><br><strong>Conductor:</strong> ${conductor}`);
+      }
+
+      // Destino - ícono gota roja
+      if (e.destino_lat && e.destino_lon) {
+        L.marker([e.destino_lat, e.destino_lon], { icon: iconGotaDestino })
+          .addTo(mapa)
+          .bindPopup(`
+            <b>Destino</b><br>
+            <strong>Conductor:</strong> ${conductor}<br>
+            <strong>Lugar destino:</strong> ${e.nombre_lugar}<br>
+            <strong>ID Entrega:</strong> ${e.id_entrega}
+          `);
+      }
+
+      // Ubicación actual - ícono camión verde
+      if (e.actual_lat && e.actual_lon) {
+        L.marker([e.actual_lat, e.actual_lon], { icon: iconConductor })
+          .addTo(mapa)
+          .bindPopup(`<b>Ubicación Actual</b><br><strong>Conductor:</strong> ${conductor}`);
+      }
+
+      // Ruta real entre ubicación actual y destino
+      if (e.actual_lat && e.actual_lon && e.destino_lat && e.destino_lon) {
+        dibujarRuta([e.actual_lat, e.actual_lon], [e.destino_lat, e.destino_lon], colorRuta);
+      }
+    });
+  </script>
+</body>
+</html>

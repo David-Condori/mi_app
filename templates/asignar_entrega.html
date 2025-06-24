@@ -24,12 +24,32 @@
         header {
             background-color: var(--verde-claro);
             padding: 20px;
-            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         header h1 {
             margin: 0;
             font-size: 28px;
+        }
+
+        .acciones-supervisor {
+            display: flex;
+            gap: 10px;
+        }
+
+        .acciones-supervisor a {
+            background-color: var(--blanco);
+            color: var(--verde-oscuro);
+            padding: 8px 14px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .acciones-supervisor a:hover {
+            background-color: var(--gris-texto);
         }
 
         .container {
@@ -142,6 +162,10 @@
 <body>
     <header>
         <h1>🚚 Asignación de Entregas</h1>
+        <div class="acciones-supervisor">
+            <a href="{{ url_for('verificar_conductores') }}">👷 Verificar Conductores</a>
+            <a href="{{ url_for('verificar_vehiculos') }}">🚛 Verificar Vehículos</a>
+        </div>
     </header>
 
     <div class="container">
@@ -163,7 +187,7 @@
 
             <label for="conductor_id">Conductor:</label>
             <select name="conductor_id" required>
-                <option value="">Seleccione un conductor</option>
+                <option value="">Seleccione un conductor disponible</option>
                 {% for c in conductores %}
                     <option value="{{ c.id_conductor }}">{{ c.nombre }} {{ c.apellido_paterno }} {{ c.apellido_materno }}</option>
                 {% endfor %}
@@ -171,7 +195,7 @@
 
             <label for="vehiculo_id">Vehículo:</label>
             <select name="vehiculo_id" required>
-                <option value="">Seleccione un vehículo</option>
+                <option value="">Seleccione un vehículo disponible</option>
                 {% for v in vehiculos %}
                     <option value="{{ v.id_vehiculo }}">{{ v.placa }} - {{ v.tipo_vehiculo }}</option>
                 {% endfor %}
@@ -234,7 +258,7 @@
         {% endif %}
 
         <div class="center">
-            <a href="{{ url_for('dashboard') }}" class="btn-volver">🔙 Volver al Panel</a>
+            <a href="{{ url_for('asignar_entrega') }}" class="btn-volver">🔙 Volver al Panel</a>
         </div>
     </div>
 </body>

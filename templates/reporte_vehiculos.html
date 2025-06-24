@@ -8,7 +8,7 @@
     body {
       margin: 0;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #064420;
+      background-color: #052d1d;
       color: #e0f2e9;
     }
     header {
@@ -17,12 +17,10 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
     }
     header h1 {
       margin: 0;
-      font-weight: 700;
-      font-size: 1.8rem;
+      font-size: 1.5rem;
       color: #a4d4a5;
     }
     nav a {
@@ -30,96 +28,55 @@
       text-decoration: none;
       font-weight: 600;
       margin-left: 1.5rem;
-      transition: color 0.3s ease;
     }
     nav a:hover {
-      color: #d1f0d2;
+      color: #b8e4b1;
     }
     main {
       max-width: 1100px;
       margin: 2rem auto;
       padding: 0 1rem;
     }
-    h2 {
+    h2, h3 {
       text-align: center;
-      margin-bottom: 1rem;
-      font-weight: 700;
       color: #b8e4b1;
+      margin-top: 2rem;
     }
-
-    .resumen {
-      display: flex;
-      justify-content: space-around;
-      flex-wrap: wrap;
-      margin-bottom: 2rem;
-    }
-    .card {
-      background-color: #0c6f2f;
-      padding: 1rem 1.5rem;
-      margin: 0.5rem;
-      border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-      text-align: center;
-      flex: 1 1 200px;
-    }
-    .card h3 {
-      margin: 0;
-      font-size: 1.2rem;
-      color: #d0f0c0;
-    }
-    .card p {
-      margin: 0.5rem 0 0;
-      font-size: 1.5rem;
-      font-weight: bold;
-    }
-
-    .filtros {
-      text-align: center;
-      margin-bottom: 1rem;
-    }
-    .filtros button {
-      margin: 0.5rem;
-      padding: 8px 16px;
-      border: none;
-      background-color: #0c6f2f;
-      color: #d0f0c0;
-      font-weight: 600;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    .filtros button:hover {
-      background-color: #108f3c;
-    }
-
     table {
       width: 100%;
       border-collapse: collapse;
-      box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+      margin-top: 1rem;
+      background-color: #0c4024;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 0 8px rgba(0,0,0,0.4);
     }
     th, td {
-      padding: 12px 15px;
-      border-bottom: 1px solid #3a6a39;
+      padding: 10px;
       text-align: left;
+      border-bottom: 1px solid #378156;
+      color: #d0f0c0;
     }
     th {
-      background-color: #0c6f2f;
+      background-color: #0e5b36;
       color: #d0f0c0;
-      font-weight: 700;
     }
     tr:nth-child(even) {
       background-color: #0b5c28;
     }
     tr:hover {
       background-color: #0d7f33;
+      cursor: default;
     }
-
+    .libre {
+      background-color: #044c24 !important;
+    }
     footer {
       text-align: center;
-      padding: 1rem 0;
+      padding: 1rem;
       font-size: 0.9rem;
       color: #a4d4a5;
-      border-top: 1px solid #045c2f;
-      margin-top: 2rem;
+      margin-top: 3rem;
     }
   </style>
 </head>
@@ -130,37 +87,15 @@
       <a href="{{ url_for('dashboard') }}">Dashboard</a>
       <a href="{{ url_for('ver_pedidos') }}">Pedidos</a>
       <a href="{{ url_for('asignar_entrega') }}">Asignar Entrega</a>
+      <button onclick="window.open('/reporte_vehiculos/pdf', '_blank')">Exportar reporte a PDF</button>
     </nav>
   </header>
 
   <main>
-    <h2>Resumen General de Vehículos</h2>
-    <div class="resumen">
-      <div class="card">
-        <h3>Total Vehículos</h3>
-        <p>{{ total_vehiculos }}</p>
-      </div>
-      <div class="card">
-        <h3>Vehículos Activos</h3>
-        <p>{{ vehiculos_activos }}</p>
-      </div>
-      <div class="card">
-        <h3>Vehículos Asignados</h3>
-        <p>{{ vehiculos_asignados }}</p>
-      </div>
-      <div class="card">
-        <h3>Sin Entrega</h3>
-        <p>{{ vehiculos_sin_entrega }}</p>
-      </div>
-    </div>
+    <h2>📊 Estado General de Vehículos</h2>
+    <h3>Total Registrados: {{ total_vehiculos }}</h3>
 
-    <div class="filtros">
-      <button onclick="filtrar('todos')">Mostrar Todos</button>
-      <button onclick="filtrar('activo')">Activos</button>
-      <button onclick="filtrar('asignado')">Asignados</button>
-      <button onclick="filtrar('sin-entrega')">Sin Entrega</button>
-    </div>
-
+    <h3>🟡 Vehículos con Entregas Activas</h3>
     <table>
       <thead>
         <tr>
@@ -172,42 +107,105 @@
         </tr>
       </thead>
       <tbody>
-        {% for vehiculo in lista_vehiculos %}
-        <tr class="{{ vehiculo.clasificacion }}">
-          <td>{{ vehiculo.placa }}</td>
-          <td>{{ vehiculo.modelo }}</td>
-          <td>{{ vehiculo.tipo_vehiculo }}</td>
-          <td>{{ vehiculo.estado }}</td>
+        {% for v in vehiculos_en_entrega %}
+        <tr>
+          <td>{{ v.placa }}</td>
+          <td>{{ v.modelo }}</td>
+          <td>{{ v.tipo_vehiculo }}</td>
+          <td>{{ v.estado }}</td>
+          <td>{{ v.nombre_conductor }} {{ v.apellido_conductor }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="text-align:center;">No hay vehículos con entregas activas</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h3>✅ Vehículos que Completaron Entregas</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Placa</th>
+          <th>Modelo</th>
+          <th>Tipo</th>
+          <th>Estado</th>
+          <th>Conductor</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vehiculos_entregados %}
+        <tr>
+          <td>{{ v.placa }}</td>
+          <td>{{ v.modelo }}</td>
+          <td>{{ v.tipo_vehiculo }}</td>
+          <td>{{ v.estado }}</td>
+          <td>{{ v.nombre_conductor }} {{ v.apellido_conductor }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="text-align:center;">No hay vehículos que completaron entregas</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h3>🟢 Vehículos Libres / Disponibles</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Placa</th>
+          <th>Modelo</th>
+          <th>Tipo</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vehiculos_libres %}
+        <tr class="libre">
+          <td>{{ v.placa }}</td>
+          <td>{{ v.modelo }}</td>
+          <td>{{ v.tipo_vehiculo }}</td>
+          <td>{{ v.estado }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" style="text-align:center;">No hay vehículos libres</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h3>🚗 Todos los Vehículos</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Placa</th>
+          <th>Modelo</th>
+          <th>Tipo</th>
+          <th>Estado</th>
+          <th>Conductor Asignado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in todos_los_vehiculos %}
+        <tr>
+          <td>{{ v.placa }}</td>
+          <td>{{ v.modelo }}</td>
+          <td>{{ v.tipo_vehiculo }}</td>
+          <td>{{ v.estado }}</td>
           <td>
-            {% if vehiculo.nombre_conductor %}
-              {{ vehiculo.nombre_conductor }} {{ vehiculo.apellido_conductor }}
+            {% if v.nombre_conductor %}
+              {{ v.nombre_conductor }} {{ v.apellido_conductor }}
             {% else %}
               No asignado
             {% endif %}
           </td>
         </tr>
+        {% else %}
+        <tr><td colspan="5" style="text-align:center;">No hay vehículos registrados</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </main>
 
   <footer>
-    &copy; 2025 COBOCE - Todos los derechos reservados
+    © 2025 COBOCE
   </footer>
-
-  <script>
-    function filtrar(tipo) {
-      const filas = document.querySelectorAll("tbody tr");
-      filas.forEach(fila => {
-        if (tipo === 'todos') {
-          fila.style.display = '';
-        } else if (!fila.classList.contains(tipo)) {
-          fila.style.display = 'none';
-        } else {
-          fila.style.display = '';
-        }
-      });
-    }
-  </script>
 </body>
 </html>

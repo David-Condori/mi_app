@@ -1,44 +1,56 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>SUPERVISOR</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #006400; /* Dark Green background */
             margin: 0;
             padding: 0;
-            color: black; /* Cambiado a negro para el texto general */
+            color: black;
+            background-image: url('/static/fotos/coboce.jpg');
+            background-size: 1600px 800px;
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-attachment: fixed; /* Para que se quede fijo al hacer scroll */
+            background-color: #006400; /* fallback si no carga la imagen */
         }
         .navbar {
-            background-color: #004d00; /* Dark Green for navbar */
-            color: black; /* Cambiado a negro para el texto del navbar */
+            background-color: rgba(0, 77, 0, 0.85); /* verde oscuro con algo de transparencia */
+            color: black;
             padding: 15px;
             text-align: center;
         }
         .container {
             padding: 20px;
+            background-color: rgba(168, 208, 141, 0.85); /* panel con transparencia para leer texto sobre la imagen */
+            border-radius: 10px;
+            max-width: 800px;
+            margin: 30px auto;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
         .panel-option {
-            background-color: #a8d08d; /* Soft Green for panel options */
+            background-color: rgba(168, 208, 141, 0.9);
             padding: 20px;
             margin-bottom: 15px;
             border-radius: 5px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         a.button {
-            background-color: #388e3c; /* Soft Green for buttons */
+            background-color: #388e3c;
             color: white;
             padding: 10px 15px;
             text-decoration: none;
             border-radius: 5px;
+            display: inline-block;
+            transition: background-color 0.3s ease;
         }
         a.button:hover {
-            background-color: #2c6b2f; /* Darker green on hover */
+            background-color: #2c6b2f;
         }
         h1, h2 {
-            color: black; /* Cambiado a negro para los títulos */
+            color: black;
         }
     </style>
 </head>
@@ -53,18 +65,20 @@
         </div>
         <div class="panel-option">
             <h2>📦 Asignación de Entregas</h2>
-            <!-- Botón que llevará a la página de asignación -->
             <a class="button" href="{{ url_for('asignar_entrega') }}">Asignar Entrega</a>
         </div>
         <div class="panel-option">
             <h2>🚗 Seguimiento de Vehículos</h2>
             <a class="button" href="/seguimiento">Ver Ubicaciones en el Mapa</a>
         </div>
-            <div class="panel-option">
+        <div class="panel-option">
             <h2>📬 Ver Notificaciones de Conductores</h2>
             <a class="button" href="{{ url_for('ver_notificaciones') }}">Ver Notificaciones</a>
         </div>
-
+        <div class="panel-option">
+            <h2>🗺️ Mapa en Tiempo Real de Conductores</h2>
+            <a class="button" href="{{ url_for('mapa_conductores') }}">Ver Mapa de Rutas y Ubicaciones</a>
+        </div>
     </div>
 </body>
 </html>
